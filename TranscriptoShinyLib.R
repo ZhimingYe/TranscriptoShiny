@@ -200,7 +200,7 @@ GetGroups<-function(groups){
   groups3<-names(table(groups))
   combinations <- expand.grid(groups3, groups3)
   groups2<-names(table(groups))
-  all_permutations <- permutations(n = length(groups2), r = length(groups2), v = groups2)
+  all_permutations <- gtools::permutations(n = length(groups2), r = length(groups2), v = groups2)
   all_permutations <- apply(all_permutations, 1, paste, collapse = "-")
   all_permutationsA<-data.frame(Cpr=all_permutations)
   all_permutationsA<-all_permutationsA%>%dplyr::mutate(GroupOrder=1:nrow(all_permutationsA))
@@ -221,8 +221,10 @@ GenDEGtable<-function(Expr,GroupInput,CprString){
   CprDF<-data.frame(ID=colnames(ExprT),Group=GroupVec)
   showNotification("Trying Perform DESeq2 analysis, Please wait...")
   ddsx<-DESeqDataSetFromMatrix(countData = round(ExprT), colData = CprDF, design = ~Group)
+  showNotification("Waiting DESeq2 response... ")
   ddsx <- DESeq(ddsx)
   contrastx <- c("Group", CprA, CprB)
+  showNotification("Waiting DESeq2 response... ")
   CPRx <- lfcShrink(ddsx, contrast=contrastx, type="ashr")
   CPRxA <- as.data.frame(CPRx)
   library(edgeR)
@@ -257,6 +259,28 @@ GenDEGtable<-function(Expr,GroupInput,CprString){
   return(DEGres)
 }
 
+
+
+GenDEGtable.Norm<-function(Expr,GroupInput,CprString){
+  CprA<-sapply(strsplit(CprString,"[-]"),function(x)x[1])
+  CprB<-sapply(strsplit(CprString,"[-]"),function(x)x[2])
+  KeepVec<-GroupInput%in%c(CprA,CprB)
+  GroupVec<-GroupInput[KeepVec]
+  ExprT<-Expr[,KeepVec]
+  library(DESeq2)
+  CprDF<-data.frame(ID=colnames(ExprT),Group=GroupVec)
+  showNotification("Trying Perform limma analysis, Please wait...")
+  library(limma)
+  design = model.matrix(~0+GroupVec)
+  colnames(design) = gsub("GroupVec","",colnames(design))
+  x <- c(CprString)
+  contrast =  makeContrasts(contrasts=x,levels=design)
+  fit1 <- lmFit(ExprT, design)
+  fit2 <- contrasts.fit(fit1,contrasts = contrast)
+  fit3 <- eBayes(fit2,trend = T)
+  tmpOut <- topTable(fit3,coef = 1,n = Inf,adjust.method = "BH",sort.by = "logFC")
+  return(tmpOut%>%dplyr::select(logFC,P.Value,adj.P.Val)%>%dplyr::rename(PValue=P.Value,Padj=adj.P.Val)%>%dplyr::mutate(Package="limma")%>%rownames_to_column(var="GID"))
+}
 
 
 ggbiplot.internal <- function(pcobj, choices = 1:2, scale = 1, pc.biplot = TRUE,

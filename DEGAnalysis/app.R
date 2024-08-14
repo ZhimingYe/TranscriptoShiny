@@ -18,6 +18,8 @@ library(factoextra)
 library(ggbiplot)
 library(edgeR)
 library(ComplexHeatmap)
+library(Mfuzz)
+library(RColorBrewer)
 ui <- fluidPage(
   useShinyjs(),
   titlePanel("Differential Expression Analysis"),
@@ -32,7 +34,6 @@ ui <- fluidPage(
         tags$footer(paste0("@ YAO LAB"), style = "font-size: 12px; color: grey;")
       ),
       passwordInput("passwd", "Password"),
-      actionButton("loginBtn", "Login"),
       hr(),
       div(
         style = "text-align: left;",
@@ -79,7 +80,8 @@ ui <- fluidPage(
         )
       ),
       fileInput("colData", "Upload Group Information (CSV)", accept = "text/csv"),
-      actionButton("UploadFin", "Uploaded Confirm"),
+      actionButton("UploadFin", "Access Programme"),
+      hr(),
       radioButtons(
         "SEQtypeDfTypeloggedInput",
         "Matrix Type",
@@ -129,7 +131,7 @@ ui <- fluidPage(
       ),
       hr(),
       radioButtons(
-        "radio2",
+        "ANLtype",
         "Analysis Type",
         choices = list(
           "DEA according to Group" = "G",
@@ -138,25 +140,19 @@ ui <- fluidPage(
         selected = "G"
       ),
       conditionalPanel(
-        condition = "input.radio2 == 'G'",
+        condition = "input.ANLtype == 'G'",
         selectInput("selectA", "If according to Group, Select Comparision", choices = NULL)
       ),
       conditionalPanel(
-        condition = "input.radio2 == 'T'",
+        condition = "input.ANLtype == 'T'",
         selectInput("selectB", "If according to Trend, Select Order", choices = NULL),
         sliderInput(
-          "sliderRows",
+          "MUZZN",
           "If according to Trend, Select Cluster numbers",
-          min = 1,
-          max = 10,
-          value = 1
-        ),
-        checkboxInput(
-          "checkbox",
-          "If according to Trend, Perform prefiltering based on DEA?",
-          value = TRUE
-        ),
-        checkboxInput("checkbox", "If according to Trend, adjust P?", value = TRUE)
+          min = 6,
+          max = 15,
+          value = 6
+        )
       ),
       hr(),
       conditionalPanel(
@@ -165,7 +161,7 @@ ui <- fluidPage(
       actionButton("runDESeq", "Run DEG analysis"),
       downloadButton("downloadData", "Download Differential Genes CSV"),
       conditionalPanel(
-        condition = "input.FilterBatchInput",
+        condition = "input.FilterBatchInput | input.SEQtypeDfTypeloggedInput == 'LSRAW'| input.SEQtypeDfTypeloggedInput == 'LSLOG'",
         downloadButton("downloadData2", "Download Batch-Eff Corrected CSV")
       )
     ),
@@ -183,6 +179,7 @@ ui <- fluidPage(
   )
 )
 Flag <- F
+DEGtable<-data.frame()
 source("~/Documents/4Fun/TranscriptoShiny/TranscriptoShinyLib.R")
 server <- function(input, output, session) {
   shinyjs::disable("runDESeq")
@@ -225,107 +222,99 @@ server <- function(input, output, session) {
       resOrdered<-PrefilterDF(ExprTable = countData,Group = colData,SEQtypeDfTypeloggedInput = input$SEQtypeDfTypeloggedInput,doBatchremove = input$FilterBatchInput,NumFilter = input$NumFilterInput,FilterPC = input$FilterPCInput,Spec = input$SpecInput)
       PCAplot<-PlotPCA(Mat = resOrdered,group = colData[,2,drop=T],counts = input$SEQtypeDfTypeloggedInput=="COUNTRAW",loged = T,Ellipse = T,NumOfGenes = 5000)
       CRRplot<-PlotCorr(Mat = resOrdered,group = colData[,2,drop=T],counts = input$SEQtypeDfTypeloggedInput=="COUNTRAW",loged = T,Ellipse = T,NumOfGenes = 5000)
-      if(input$SEQtypeDfTypeloggedInput%in%c("COUNTRAW")){
-        DEGtable<-GenDEGtable(Expr = resOrdered,GroupInput = colData[,2,drop=T],CprString = GRPINFO[["A"]]$Cpr[GRPINFO[["A"]]$GroupOrder==input$selectA])
-        DEGtable<<-DEGtable
-      }
-      else{
+      
+      if(input$ANLtype=="T"){
+        if(input$SEQtypeDfTypeloggedInput=="COUNTRAW"){
+          resOrdered<-edgeR::cpm(resOrdered)
+        }
+        TgtFactor<-factor(colData[,2,drop=T],levels = strsplit(GRPINFO[["B"]]$Cpr[GRPINFO[["B"]]$GroupOrder==input$selectB], "-")[[1]])
         
+        MfuzzMat<-apply(resOrdered,1,function(x)tapply(x,TgtFactor,mean))
+        MfuzzMat<-MfuzzMat%>%t()%>%as.data.frame()
+        showNotification("Preparing for Mfuzz Clustering...")
+        MfuzzMat<-CalcMad(MfuzzMat,10000)
+        library(SummarizedExperiment)
+        MfuzzDs1<-new('ExpressionSet',exprs=MfuzzMat%>%as.matrix())
+        MfuzzDs1 <- standardise(MfuzzDs1)
+        set.seed(2024)
+        showNotification("Mfuzz Clustering...")
+        cl <<- mfuzz(MfuzzDs1,c=input$MUZZN,m= mestimate(MfuzzDs1))
+        DEGtable<<-cl[["cluster"]]%>%as.data.frame()
+        colnames(DEGtable)<-"Belong to Cluster"
+        MfuzzDs1a<<-MfuzzDs1
+        output$volcanoPlot <- renderPlot({mfuzz.plot(MfuzzDs1a, cl = cl,time.labels =strsplit(GRPINFO[["B"]]$Cpr[GRPINFO[["B"]]$GroupOrder==input$selectB], "-")[[1]],  mfrow = c(3, 5), new.window = FALSE, colo = rev(brewer.pal(11, "RdBu")))})
+        Flag <<- T
       }
-      showNotification(input$selectA)
-      Flag <- T
+      if(input$ANLtype=="G"){
+        if(input$SEQtypeDfTypeloggedInput%in%c("COUNTRAW")){
+          DEGtable<-GenDEGtable(Expr = resOrdered,GroupInput = colData[,2,drop=T],CprString = GRPINFO[["A"]]$Cpr[GRPINFO[["A"]]$GroupOrder==input$selectA])
+          
+          DEGtable<<-DEGtable
+        }
+        else{
+          DEGtable<-GenDEGtable.Norm(Expr = resOrdered,GroupInput = colData[,2,drop=T],CprString = GRPINFO[["A"]]$Cpr[GRPINFO[["A"]]$GroupOrder==input$selectA])
+          DEGtable<<-DEGtable
+        }
+        dfa<-DEGtable%>%dplyr::filter(Package=="limma")
+        dfa$significant <- with(dfa, ifelse(Padj < 0.05 & abs(logFC) > 1, "Significant", "Not Significant"))
+        px <- ggplot(dfa, aes(x=logFC, y=-log10(Padj))) +
+          geom_point(aes(color=significant), alpha=0.8, size=1.75) +
+          scale_color_manual(values=c("#5ecd72", "#88a8d3")) +
+          theme_minimal() +
+          labs(title="Volcano Plot",
+               x="Log2 Fold Change",
+               y="-Log10 p-value") +
+          theme(legend.position = "top")
+        output$volcanoPlot <- renderPlot({px})
+        Flag <<- T
+      }
+      output$PCAplot <- renderPlot({
+        if (Flag) {
+          PCAplot
+        }
+        
+      })
+      output$PCCCR <- renderPlot({
+        if (Flag) {
+          CRRplot
+        }})
+      output$table <- renderDT({
+        if (Flag) {
+          datatable(as.data.frame(DEGtable), options =  list(pageLength = 50, scrollX = T))
+        }
+      })
+      output$downloadData <- downloadHandler(
+        filename = function() {
+          "differential_genes.csv"
+        },
+        content = function(file) {
+          write.csv(as.data.frame(DEGtable), file)
+        }
+      )
+      output$downloadData2 <- downloadHandler(
+        filename = function() {
+          "ExprMatCorr.csv"
+        },
+        content = function(file) {
+          write.csv(as.data.frame(resOrdered), file)
+        }
+      )
       shinyjs::enable("downloadData")
       if(input$FilterBatchInput|input$SEQtypeDfTypeloggedInput%in%c("LSRAW","LSLOG")){
         shinyjs::enable("downloadData2")
       }
     }, error = function(e) {
       showNotification(paste("Error:", e$message), type = "error")
-      Flag <- F
-    })
-    output$PCAplot <- renderPlot({
-      if (Flag) {
-        PCAplot
-      }
-      
-    })
-    output$PCCCR <- renderPlot({
-      if (Flag) {
-        CRRplot
-      }
-      
-    })
-    output$table <- renderDT({
-      if (Flag) {
-        datatable(as.data.frame(DEGtable), options =  list(pageLength = 50, scrollX = T))
-      }
-      
-    })
-  })
-  
-  
-  output$volcanoPlot <- renderPlot({
-    if (Flag) {
-      # ggplot(resOrdered, aes(x = log2FoldChange, y = -log10(padj))) +
-      #   geom_point(alpha = 0.4) +
-      #   xlab("Log2 Fold Change") +
-      #   ylab("-Log10 Adjusted P-value") +
-      #   theme_minimal()
+      Flag <<- F
     }
+    )
     
   })
-  
-  
   output$SesionInfo <- renderDT({
     (xfun::session_info() %>% as_tibble())[-c(1:3), ]
   }, options = list(pageLength = 50, scrollX = T))
-  output$downloadData <- downloadHandler(
-    filename = function() {
-      "differential_genes.csv"
-    },
-    content = function(file) {
-      write.csv(as.data.frame(DEGtable), file)
-    }
-  )
+  
 }
 
 
-
-# df<-read_csv ("~/Documents/A_onGoing/MemGradFillin2Days/YMJ_LK99/QZH_Glia_CELLs_inLUNG/工作簿2.csv")[,2,drop=T]
-# 
-# PCAplot<-PlotPCA(Mat = resOrdered,group = df,counts = T,loged = T,Ellipse = T,NumOfGenes = 5000)
-
-
-# 
-# sum(((read_csv ("~/Documents/A_onGoing/MemGradFillin2Days/YMJ_LK99/QZH_Glia_CELLs_inLUNG/工作簿2.csv")[,2,drop=T])%>%table()%>%as.numeric())>=3)>=2
-# 
-# DFA<-read_csv("~/Documents/A_onGoing/MemGradFillin2Days/YMJ_LK99/QZH_Glia_CELLs_inLUNG/GSE223056_geo_counts_副本.csv")
-# duplicated(DFA$gene)%>%sum()
-# 
-# read_csv ("~/Documents/A_onGoing/MemGradFillin2Days/YMJ_LK99/QZH_Glia_CELLs_inLUNG/工作簿2.csv")[, 1, drop = T]
-# resOrdered<-PrefilterDF(ExprTable = read_csv("~/Documents/A_onGoing/MemGradFillin2Days/YMJ_LK99/QZH_Glia_CELLs_inLUNG/GSE223056_geo_counts_副本.csv"),Group =read_csv ("~/Documents/A_onGoing/MemGradFillin2Days/YMJ_LK99/QZH_Glia_CELLs_inLUNG/工作簿2.csv"),SEQtypeDfTypeloggedInput = "TPMRAW",doBatchremove = T,NumFilter = 2,FilterPC = "PC",Spec ="Mouse")
-
-# 启动一个包含分组信息的vector
-
 shinyApp(ui = ui, server = server)
-# 
-# 
-# 
-# library(gtools)
-# 
-# # 定义分组信息
-# group <- c("A", "B")
-# 
-# # 生成所有可能的排列
-# all_permutations <- permutations(n = length(group), r = length(group), v = group)
-# 
-# all_permutations <- apply(all_permutations, 1, paste, collapse = "")
-# 
-# dd<-list(`A`=data.frame(group=c("A", "B")))
-# dd$A
-
-# 
-# Expr <- (read_csv ("~/Documents/A_onGoing/MemGradFillin2Days/YMJ_LK99/QZH_Glia_CELLs_inLUNG/GSE223056_geo_counts_副本.csv"))%>%column_to_rownames(var="gene")
-# colData <- (read_csv ("~/Documents/A_onGoing/MemGradFillin2Days/YMJ_LK99/QZH_Glia_CELLs_inLUNG/工作簿2.csv"))
-# GRPINFO<-GetGroups(colData[,2,drop=T])
-# 
-# un
