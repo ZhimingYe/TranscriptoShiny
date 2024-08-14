@@ -1,11 +1,23 @@
 library(shiny)
 library(shinyjs)
+library(dplyr)
+library(sva)
 library(tibble)
 library(bslib)
 library(DESeq2)
 library(ggplot2)
 library(DT)
-
+library(readr)
+library(limma)
+library(ggplot2)
+library(plyr)
+library(scales)
+library(grid)
+library(FactoMineR)
+library(factoextra)
+library(ggbiplot)
+library(edgeR)
+library(ComplexHeatmap)
 ui <- fluidPage(
   useShinyjs(),
   titlePanel("Differential Expression Analysis"),
@@ -68,37 +80,49 @@ ui <- fluidPage(
       ),
       fileInput("colData", "Upload Group Information (CSV)", accept = "text/csv"),
       radioButtons(
-        "radio",
+        "SEQtypeDfTypeloggedInput",
         "Matrix Type",
         choices = list(
-          "Counts" = 1,
-          "TPM (RAW)" = 2,
-          "TPM log-transformed" = 3,
-          "Not from Sequencing (RAW)" = 4,
-          "Not from Sequencing log-transformed" = 5
+          "Counts" = "COUNTRAW",
+          "TPM (RAW)" = "TPMRAW",
+          "TPM log-transformed" = "TPMLOG",
+          "Not from Sequencing (RAW)" = "LSRAW",
+          "Not from Sequencing log-transformed" = "LSLOG"
         ),
-        selected = 1
+        selected = "COUNTRAW"
       ),
       sliderInput(
-        "sliderRows",
+        "NumFilterInput",
         "Genes expressed in N sample were keet",
         min = 1,
-        max = 1,
-        value = 1
+        max = 20,
+        value = 2
       ),
       radioButtons(
-        "radio3",
-        "Filter Gene Type",
+        "SpecInput",
+        "Organism",
         choices = list(
-          "Protein coding gene only (only supports human and mouse)" = "G",
-          "NCRNA only (only supports human and mouse)" = "T",
-          "Not filtering" = "N"
+          "Human" = "Human",
+          "Mouse" = "Mouse",
+          "Others" = "Others"
         ),
-        selected = "N"
+        selected = "Human"
       ),
+      conditionalPanel(
+        condition = "input.SpecInput != 'Others'",
+        radioButtons(
+          "FilterPCInput",
+          "Filter Gene Type",
+          choices = list(
+            "Protein coding gene only (only supports human and mouse)" = "PC",
+            "NCRNA only (only supports human and mouse)" = "NC",
+            "Not filtering" = "NOT"
+          ),
+          selected = "NOT"
+        )),
       hr(),
       checkboxInput(
-        "checkbox",
+        "FilterBatchInput",
         "REMOVE batch effect (Might be not correct, only suggest in analysing public data)",
         value = F
       ),
@@ -134,11 +158,9 @@ ui <- fluidPage(
         checkboxInput("checkbox", "If according to Trend, adjust P?", value = TRUE)
       ),
       hr(),
-      checkboxInput("checkbox", "Add gene annotation", value = TRUE),
-      div(
-        style = "text-align: center;",
-        tags$text(paste0("Annotation only supports human and mouse."), style = "font-size: 12px; color: black;")
-      ),
+      conditionalPanel(
+        condition = "input.SpecInput != 'Others'",
+        checkboxInput("checkbox", "Add gene annotation", value = F)),
       actionButton("runDESeq", "Run DEG analysis"),
       downloadButton("downloadData", "Download Differential Genes CSV")
     ),
@@ -156,14 +178,21 @@ ui <- fluidPage(
   )
 )
 Flag <- F
+source("~/Documents/4Fun/TranscriptoShiny/TranscriptoShinyLib.R")
 
 
-
-PrefilterTable<-function(df1,df2,mattype,ngenes,filtgene,batrm){
-  qzhFPKM[,1,drop=T]%>%typeof()
-  sum(duplicated(qzhFPKM[,1,drop=T]))
+# PrefilterTable<-function(df1,df2,mattype,ngenes,filtgene,batrm){
+#   qzhFPKM[,1,drop=T]%>%typeof()
+#   sum(duplicated(qzhFPKM[,1,drop=T]))
+# }
+MaxCol<-function(ExprTable){
+  if(ncol(ExprTable)>=4){
+    return(round(ncol(ExprTable)/1.25))
+  }
+  else{
+    stop("Not enough Samples!")
+  }
 }
-
 
 
 server <- function(input, output, session) {
@@ -182,50 +211,59 @@ server <- function(input, output, session) {
   })
   observeEvent(input$runDESeq, {
     req(input$countMatrix, input$colData)
+    
+    
+    
     tryCatch({
-      countData <- read.csv(input$countMatrix$datapath, row.names = 1)
-      colData <- read.csv(input$colData$datapath, row.names = 1)
-      
-      if (!"condition" %in% colnames(colData)) {
-        stop("The group information file must contain a 'condition' column.")
+      countData <- read_csv(input$countMatrix$datapath)
+      colData <- read_csv(input$colData$datapath)
+      if(input$NumFilterInput>ncol(countData)*0.75){
+        stop("Not enough column to filter")
       }
+      resOrdered<-PrefilterDF(ExprTable = countData,Group = colData,SEQtypeDfTypeloggedInput = input$SEQtypeDfTypeloggedInput,doBatchremove = input$FilterBatchInput,NumFilter = input$NumFilterInput,FilterPC = input$FilterPCInput,Spec = input$SpecInput)
+      PCAplot<-PlotPCA(Mat = resOrdered,group = colData[,2,drop=T],counts = input$SEQtypeDfTypeloggedInput=="COUNTRAW",loged = T,Ellipse = T,NumOfGenes = 5000)
+      CRRplot<-PlotCorr(Mat = resOrdered,group = colData[,2,drop=T],counts = input$SEQtypeDfTypeloggedInput=="COUNTRAW",loged = T,Ellipse = T,NumOfGenes = 5000)
       
-      dds <- DESeqDataSetFromMatrix(
-        countData = countData,
-        colData = colData,
-        design = ~ condition
-      )
-      dds <- DESeq(dds)
-      res <- results(dds)
-      resOrdered <- res[order(res$padj), ]
       
       Flag <- T
-      
+      shinyjs::enable("downloadData")
     }, error = function(e) {
       showNotification(paste("Error:", e$message), type = "error")
       Flag <- F
     })
-    
+    output$PCAplot <- renderPlot({
+      if (Flag) {
+        PCAplot
+      }
+      
+    })
+    output$PCCCR <- renderPlot({
+      if (Flag) {
+        CRRplot
+      }
+      
+    })
+    output$table <- renderDT({
+      if (Flag) {
+        datatable(as.data.frame(resOrdered), options =  list(pageLength = 50, scrollX = T))
+      }
+      
+    })
   })
   
   
   output$volcanoPlot <- renderPlot({
     if (Flag) {
-      ggplot(resOrdered, aes(x = log2FoldChange, y = -log10(padj))) +
-        geom_point(alpha = 0.4) +
-        xlab("Log2 Fold Change") +
-        ylab("-Log10 Adjusted P-value") +
-        theme_minimal()
+      # ggplot(resOrdered, aes(x = log2FoldChange, y = -log10(padj))) +
+      #   geom_point(alpha = 0.4) +
+      #   xlab("Log2 Fold Change") +
+      #   ylab("-Log10 Adjusted P-value") +
+      #   theme_minimal()
     }
     
   })
   
-  output$table <- renderDT({
-    if (Flag) {
-      datatable(as.data.frame(resOrdered), options = list(pageLength = 10))
-    }
-    
-  })
+  
   output$SesionInfo <- renderDT({
     (xfun::session_info() %>% as_tibble())[-c(1:3), ]
   }, options = list(pageLength = 50, scrollX = T))
@@ -242,5 +280,19 @@ server <- function(input, output, session) {
   
   
 }
+
+# df<-read_csv ("~/Documents/A_onGoing/MemGradFillin2Days/YMJ_LK99/QZH_Glia_CELLs_inLUNG/工作簿2.csv")[,2,drop=T]
+# 
+# PCAplot<-PlotPCA(Mat = resOrdered,group = df,counts = T,loged = T,Ellipse = T,NumOfGenes = 5000)
+
+
+# 
+# sum(((read_csv ("~/Documents/A_onGoing/MemGradFillin2Days/YMJ_LK99/QZH_Glia_CELLs_inLUNG/工作簿2.csv")[,2,drop=T])%>%table()%>%as.numeric())>=3)>=2
+# 
+# DFA<-read_csv("~/Documents/A_onGoing/MemGradFillin2Days/YMJ_LK99/QZH_Glia_CELLs_inLUNG/GSE223056_geo_counts_副本.csv")
+# duplicated(DFA$gene)%>%sum()
+# 
+# read_csv ("~/Documents/A_onGoing/MemGradFillin2Days/YMJ_LK99/QZH_Glia_CELLs_inLUNG/工作簿2.csv")[, 1, drop = T]
+# resOrdered<-PrefilterDF(ExprTable = read_csv("~/Documents/A_onGoing/MemGradFillin2Days/YMJ_LK99/QZH_Glia_CELLs_inLUNG/GSE223056_geo_counts_副本.csv"),Group =read_csv ("~/Documents/A_onGoing/MemGradFillin2Days/YMJ_LK99/QZH_Glia_CELLs_inLUNG/工作簿2.csv"),SEQtypeDfTypeloggedInput = "TPMRAW",doBatchremove = T,NumFilter = 2,FilterPC = "PC",Spec ="Mouse")
 
 shinyApp(ui = ui, server = server)
