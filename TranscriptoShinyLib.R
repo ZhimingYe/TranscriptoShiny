@@ -10,6 +10,9 @@ PrefilterDF<-function(ExprTable,Group,SEQtypeDfTypeloggedInput,doBatchremove,Num
   if(typeof(ExprTable[,1,drop=T])!="character"){
     stop("CSV file format error, can't find gene column.")
   }
+  if(sum(grepl("[-]",colnames(ExprTable)))!=0){
+    stop("Column names should not contain short dash (-)")
+  }
   if((ncol(ExprTable)-1)!=nrow(Group)){
     stop("Expr table not match with the grouping table. [Sample num not matched]")
   }
@@ -87,7 +90,7 @@ PrefilterDF<-function(ExprTable,Group,SEQtypeDfTypeloggedInput,doBatchremove,Num
     }
     try({
       if(DfType=="Count"){
-        ExprTable2<-sva::ComBat_seq(ExprTable2%>%as.matrix(),Group[,3,drop=T]%>%as.factor())
+        ExprTable2<-sva::ComBat_seq(ExprTable2%>%as.matrix(),Group[,3,drop=T]%>%as.factor(),full_mod=F)
       }
       else{
         ExprTable2<-sva::ComBat(ExprTable2%>%as.matrix(),Group[,3,drop=T]%>%as.factor())
@@ -106,7 +109,7 @@ PrefilterDF<-function(ExprTable,Group,SEQtypeDfTypeloggedInput,doBatchremove,Num
       if(ORGan=="MOUSE"){
         ExprTable2<-ExprTable2[rownames(ExprTable2)%in%pcM$external_gene_name,]
       }
-      else{
+      if(ORGan=="HUMAN"){
         ExprTable2<-ExprTable2[rownames(ExprTable2)%in%pcH$external_gene_name,]
       }
     }
@@ -114,7 +117,7 @@ PrefilterDF<-function(ExprTable,Group,SEQtypeDfTypeloggedInput,doBatchremove,Num
       if(ORGan=="MOUSE"){
         ExprTable2<-ExprTable2[rownames(ExprTable2)%in%pcM$ensembl_gene_id,]
       }
-      else{
+      if(ORGan=="HUMAN"){
         ExprTable2<-ExprTable2[rownames(ExprTable2)%in%pcH$ensembl_gene_id,]
       }
     }
@@ -130,7 +133,7 @@ PrefilterDF<-function(ExprTable,Group,SEQtypeDfTypeloggedInput,doBatchremove,Num
       if(ORGan=="MOUSE"){
         ExprTable2<-ExprTable2[rownames(ExprTable2)%in%ncM$external_gene_name,]
       }
-      else{
+      if(ORGan=="HUMAN"){
         ExprTable2<-ExprTable2[rownames(ExprTable2)%in%ncH$external_gene_name,]
       }
     }
@@ -138,7 +141,7 @@ PrefilterDF<-function(ExprTable,Group,SEQtypeDfTypeloggedInput,doBatchremove,Num
       if(ORGan=="MOUSE"){
         ExprTable2<-ExprTable2[rownames(ExprTable2)%in%ncM$ensembl_gene_id,]
       }
-      else{
+      if(ORGan=="HUMAN"){
         ExprTable2<-ExprTable2[rownames(ExprTable2)%in%ncH$ensembl_gene_id,]
       }
     }
@@ -207,6 +210,55 @@ GetGroups<-function(groups){
   return(list(`A`=combinations2,`B`=all_permutationsA))
 }
 #
+
+GenDEGtable<-function(Expr,GroupInput,CprString){
+  CprA<-sapply(strsplit(CprString,"[-]"),function(x)x[1])
+  CprB<-sapply(strsplit(CprString,"[-]"),function(x)x[2])
+  KeepVec<-GroupInput%in%c(CprA,CprB)
+  GroupVec<-GroupInput[KeepVec]
+  ExprT<-Expr[,KeepVec]
+  library(DESeq2)
+  CprDF<-data.frame(ID=colnames(ExprT),Group=GroupVec)
+  showNotification("Trying Perform DESeq2 analysis, Please wait...")
+  ddsx<-DESeqDataSetFromMatrix(countData = round(ExprT), colData = CprDF, design = ~Group)
+  ddsx <- DESeq(ddsx)
+  contrastx <- c("Group", CprA, CprB)
+  CPRx <- lfcShrink(ddsx, contrast=contrastx, type="ashr")
+  CPRxA <- as.data.frame(CPRx)
+  library(edgeR)
+  library(limma)
+  showNotification("Trying Perform edgeR analysis, Please wait...")
+  group <- factor(GroupVec)
+  y <- DGEList(counts = round(ExprT), group = group)
+  keep <- filterByExpr(y)
+  y <- y[keep, , keep.lib.sizes=FALSE]
+  y <- calcNormFactors(y)
+  design <- model.matrix(~0 + group)
+  colnames(design) <- levels(group)
+  contrast_matrix <- makeContrasts(
+    contrasts = CprString,
+    levels = design
+  )
+  y <- estimateDisp(y, design)
+  fit <- glmQLFit(y, design)
+  showNotification("Trying Perform limma analysis, Please wait...")
+  v <- voom(y, design, plot = F)
+  fitV <- lmFit(v, design)
+  resultFull1 <- glmQLFTest(fit, contrast=contrast_matrix)
+  fit1_voom <- contrasts.fit(fitV, contrast=contrast_matrix)
+  fit1v <- eBayes(fit1_voom)
+  ResLimma<-topTable(fit1v, coef = paste0(CprA,"-",CprB),number = Inf)
+  edgeRresult<-topTags(resultFull1,n = Inf)
+  edgeRresult<-as.data.frame(edgeRresult)
+  edgeRresult2<-edgeRresult%>%dplyr::select(logFC,PValue,FDR)%>%dplyr::rename(Padj=FDR)%>%dplyr::mutate(Package="edgeR")%>%rownames_to_column(var="GID")
+  ResLimma2<-ResLimma%>%dplyr::select(logFC,P.Value,adj.P.Val)%>%dplyr::rename(PValue=P.Value,Padj=adj.P.Val)%>%dplyr::mutate(Package="limma")%>%rownames_to_column(var="GID")
+  CPRxA2<-CPRxA%>%dplyr::select(log2FoldChange,pvalue,padj)%>%dplyr::rename(logFC=log2FoldChange,PValue=pvalue,Padj=padj)%>%dplyr::mutate(Package="DESeq2")%>%rownames_to_column(var="GID")
+  DEGres<-rbind(CPRxA2,edgeRresult2,ResLimma2)%>%dplyr::arrange(GID)
+  return(DEGres)
+}
+
+
+
 ggbiplot.internal <- function(pcobj, choices = 1:2, scale = 1, pc.biplot = TRUE,
                               obs.scale = 1 - scale, var.scale = scale,
                               groups = NULL, ellipse = FALSE, ellipse.prob = 0.68,
@@ -363,6 +415,8 @@ ggbiplot.internal <- function(pcobj, choices = 1:2, scale = 1, pc.biplot = TRUE,
   }
   return(g)
 }
+
+
 
 # 
 

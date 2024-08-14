@@ -163,7 +163,11 @@ ui <- fluidPage(
         condition = "input.SpecInput != 'Others'",
         checkboxInput("checkbox", "Add gene annotation", value = F)),
       actionButton("runDESeq", "Run DEG analysis"),
-      downloadButton("downloadData", "Download Differential Genes CSV")
+      downloadButton("downloadData", "Download Differential Genes CSV"),
+      conditionalPanel(
+        condition = "input.FilterBatchInput",
+        downloadButton("downloadData2", "Download Batch-Eff Corrected CSV")
+      )
     ),
     mainPanel(
       navset_card_underline(
@@ -180,34 +184,20 @@ ui <- fluidPage(
 )
 Flag <- F
 source("~/Documents/4Fun/TranscriptoShiny/TranscriptoShinyLib.R")
-
-
-# PrefilterTable<-function(df1,df2,mattype,ngenes,filtgene,batrm){
-#   qzhFPKM[,1,drop=T]%>%typeof()
-#   sum(duplicated(qzhFPKM[,1,drop=T]))
-# }
-MaxCol<-function(ExprTable){
-  if(ncol(ExprTable)>=4){
-    return(round(ncol(ExprTable)/1.25))
-  }
-  else{
-    stop("Not enough Samples!")
-  }
-}
-
-
 server <- function(input, output, session) {
   shinyjs::disable("runDESeq")
   observe({
     if (Flag) {
       shinyjs::enable("downloadData")
+      shinyjs::enable("downloadData2")
     } else {
       shinyjs::disable("downloadData")
+      shinyjs::disable("downloadData2")
     }
   })
   observeEvent(input$UploadFin,{tryCatch({
     colData <- read_csv(input$colData$datapath)
-    GRPINFO<-GetGroups(colData[,2,drop=T])
+    GRPINFO<<-GetGroups(colData[,2,drop=T])
     NAME1List<-GRPINFO[["A"]]$GroupOrder
     names(NAME1List)<-GRPINFO[["A"]]$Cpr
     NAME2List<-GRPINFO[["B"]]$GroupOrder
@@ -215,6 +205,8 @@ server <- function(input, output, session) {
     updateSelectInput(session, "selectA", choices = NAME1List)
     updateSelectInput(session, "selectB", choices = NAME2List)
     shinyjs::enable("runDESeq")
+    shinyjs::disable("downloadData")
+    shinyjs::disable("downloadData2")
   }, error = function(e) {
     showNotification(paste("Error:", e$message), type = "error")
     Flag <- F
@@ -233,9 +225,19 @@ server <- function(input, output, session) {
       resOrdered<-PrefilterDF(ExprTable = countData,Group = colData,SEQtypeDfTypeloggedInput = input$SEQtypeDfTypeloggedInput,doBatchremove = input$FilterBatchInput,NumFilter = input$NumFilterInput,FilterPC = input$FilterPCInput,Spec = input$SpecInput)
       PCAplot<-PlotPCA(Mat = resOrdered,group = colData[,2,drop=T],counts = input$SEQtypeDfTypeloggedInput=="COUNTRAW",loged = T,Ellipse = T,NumOfGenes = 5000)
       CRRplot<-PlotCorr(Mat = resOrdered,group = colData[,2,drop=T],counts = input$SEQtypeDfTypeloggedInput=="COUNTRAW",loged = T,Ellipse = T,NumOfGenes = 5000)
+      if(input$SEQtypeDfTypeloggedInput%in%c("COUNTRAW")){
+        DEGtable<-GenDEGtable(Expr = resOrdered,GroupInput = colData[,2,drop=T],CprString = GRPINFO[["A"]]$Cpr[GRPINFO[["A"]]$GroupOrder==input$selectA])
+        DEGtable<<-DEGtable
+      }
+      else{
+        
+      }
       showNotification(input$selectA)
       Flag <- T
       shinyjs::enable("downloadData")
+      if(input$FilterBatchInput|input$SEQtypeDfTypeloggedInput%in%c("LSRAW","LSLOG")){
+        shinyjs::enable("downloadData2")
+      }
     }, error = function(e) {
       showNotification(paste("Error:", e$message), type = "error")
       Flag <- F
@@ -254,7 +256,7 @@ server <- function(input, output, session) {
     })
     output$table <- renderDT({
       if (Flag) {
-        datatable(as.data.frame(resOrdered), options =  list(pageLength = 50, scrollX = T))
+        datatable(as.data.frame(DEGtable), options =  list(pageLength = 50, scrollX = T))
       }
       
     })
@@ -281,10 +283,12 @@ server <- function(input, output, session) {
       "differential_genes.csv"
     },
     content = function(file) {
-      write.csv(as.data.frame(resOrdered), file)
+      write.csv(as.data.frame(DEGtable), file)
     }
   )
 }
+
+
 
 # df<-read_csv ("~/Documents/A_onGoing/MemGradFillin2Days/YMJ_LK99/QZH_Glia_CELLs_inLUNG/工作簿2.csv")[,2,drop=T]
 # 
@@ -320,6 +324,7 @@ shinyApp(ui = ui, server = server)
 # dd$A
 
 # 
+# Expr <- (read_csv ("~/Documents/A_onGoing/MemGradFillin2Days/YMJ_LK99/QZH_Glia_CELLs_inLUNG/GSE223056_geo_counts_副本.csv"))%>%column_to_rownames(var="gene")
 # colData <- (read_csv ("~/Documents/A_onGoing/MemGradFillin2Days/YMJ_LK99/QZH_Glia_CELLs_inLUNG/工作簿2.csv"))
 # GRPINFO<-GetGroups(colData[,2,drop=T])
 # 
