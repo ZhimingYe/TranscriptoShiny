@@ -193,7 +193,19 @@ PlotCorr<-function(Mat,group,Ellipse=T,counts=F,loged=T,NumOfGenes=5000){
   showNotification("Correlation plot generated")
   return(pic1)
 }
-
+GetGroups<-function(groups){
+  groups3<-names(table(groups))
+  combinations <- expand.grid(groups3, groups3)
+  groups2<-names(table(groups))
+  all_permutations <- permutations(n = length(groups2), r = length(groups2), v = groups2)
+  all_permutations <- apply(all_permutations, 1, paste, collapse = "-")
+  all_permutationsA<-data.frame(Cpr=all_permutations)
+  all_permutationsA<-all_permutationsA%>%dplyr::mutate(GroupOrder=1:nrow(all_permutationsA))
+  combinations2<-combinations[combinations$Var1!=combinations$Var2,]
+  combinations2<-combinations2%>%as.data.frame()
+  combinations2<-combinations2%>%dplyr::mutate(Cpr=paste0(Var1,"-",Var2),GroupOrder=1:nrow(combinations2))
+  return(list(`A`=combinations2,`B`=all_permutationsA))
+}
 #
 ggbiplot.internal <- function(pcobj, choices = 1:2, scale = 1, pc.biplot = TRUE,
                               obs.scale = 1 - scale, var.scale = scale,
@@ -353,6 +365,7 @@ ggbiplot.internal <- function(pcobj, choices = 1:2, scale = 1, pc.biplot = TRUE,
 }
 
 # 
+
 # library(biomaRt)
 # Sys.setenv(http_proxy="http://127.0.0.1:7890")
 # Sys.setenv(https_proxy="http://127.0.0.1:7890")

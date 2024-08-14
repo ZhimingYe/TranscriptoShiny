@@ -79,6 +79,7 @@ ui <- fluidPage(
         )
       ),
       fileInput("colData", "Upload Group Information (CSV)", accept = "text/csv"),
+      actionButton("UploadFin", "Uploaded Confirm"),
       radioButtons(
         "SEQtypeDfTypeloggedInput",
         "Matrix Type",
@@ -93,7 +94,7 @@ ui <- fluidPage(
       ),
       sliderInput(
         "NumFilterInput",
-        "Genes expressed in N sample were keet",
+        "Genes expressed in N sample were kept",
         min = 1,
         max = 20,
         value = 2
@@ -196,6 +197,7 @@ MaxCol<-function(ExprTable){
 
 
 server <- function(input, output, session) {
+  shinyjs::disable("runDESeq")
   observe({
     if (Flag) {
       shinyjs::enable("downloadData")
@@ -203,12 +205,20 @@ server <- function(input, output, session) {
       shinyjs::disable("downloadData")
     }
   })
-  colData <- data.frame(Group = NULL)
-  observe({
-    if (!is.null(colData)) {
-      updateSelectInput(session, "selectA", choices = unique(colData$Group))
-    }
-  })
+  observeEvent(input$UploadFin,{tryCatch({
+    colData <- read_csv(input$colData$datapath)
+    GRPINFO<-GetGroups(colData[,2,drop=T])
+    NAME1List<-GRPINFO[["A"]]$GroupOrder
+    names(NAME1List)<-GRPINFO[["A"]]$Cpr
+    NAME2List<-GRPINFO[["B"]]$GroupOrder
+    names(NAME2List)<-GRPINFO[["B"]]$Cpr
+    updateSelectInput(session, "selectA", choices = NAME1List)
+    updateSelectInput(session, "selectB", choices = NAME2List)
+    shinyjs::enable("runDESeq")
+  }, error = function(e) {
+    showNotification(paste("Error:", e$message), type = "error")
+    Flag <- F
+  })})
   observeEvent(input$runDESeq, {
     req(input$countMatrix, input$colData)
     
@@ -223,7 +233,6 @@ server <- function(input, output, session) {
       resOrdered<-PrefilterDF(ExprTable = countData,Group = colData,SEQtypeDfTypeloggedInput = input$SEQtypeDfTypeloggedInput,doBatchremove = input$FilterBatchInput,NumFilter = input$NumFilterInput,FilterPC = input$FilterPCInput,Spec = input$SpecInput)
       PCAplot<-PlotPCA(Mat = resOrdered,group = colData[,2,drop=T],counts = input$SEQtypeDfTypeloggedInput=="COUNTRAW",loged = T,Ellipse = T,NumOfGenes = 5000)
       CRRplot<-PlotCorr(Mat = resOrdered,group = colData[,2,drop=T],counts = input$SEQtypeDfTypeloggedInput=="COUNTRAW",loged = T,Ellipse = T,NumOfGenes = 5000)
-      
       
       Flag <- T
       shinyjs::enable("downloadData")
@@ -275,10 +284,6 @@ server <- function(input, output, session) {
       write.csv(as.data.frame(resOrdered), file)
     }
   )
-  
-  
-  
-  
 }
 
 # df<-read_csv ("~/Documents/A_onGoing/MemGradFillin2Days/YMJ_LK99/QZH_Glia_CELLs_inLUNG/工作簿2.csv")[,2,drop=T]
@@ -295,4 +300,27 @@ server <- function(input, output, session) {
 # read_csv ("~/Documents/A_onGoing/MemGradFillin2Days/YMJ_LK99/QZH_Glia_CELLs_inLUNG/工作簿2.csv")[, 1, drop = T]
 # resOrdered<-PrefilterDF(ExprTable = read_csv("~/Documents/A_onGoing/MemGradFillin2Days/YMJ_LK99/QZH_Glia_CELLs_inLUNG/GSE223056_geo_counts_副本.csv"),Group =read_csv ("~/Documents/A_onGoing/MemGradFillin2Days/YMJ_LK99/QZH_Glia_CELLs_inLUNG/工作簿2.csv"),SEQtypeDfTypeloggedInput = "TPMRAW",doBatchremove = T,NumFilter = 2,FilterPC = "PC",Spec ="Mouse")
 
+# 启动一个包含分组信息的vector
+
 shinyApp(ui = ui, server = server)
+# 
+# 
+# 
+# library(gtools)
+# 
+# # 定义分组信息
+# group <- c("A", "B")
+# 
+# # 生成所有可能的排列
+# all_permutations <- permutations(n = length(group), r = length(group), v = group)
+# 
+# all_permutations <- apply(all_permutations, 1, paste, collapse = "")
+# 
+# dd<-list(`A`=data.frame(group=c("A", "B")))
+# dd$A
+
+
+colData <- (read_csv ("~/Documents/A_onGoing/MemGradFillin2Days/YMJ_LK99/QZH_Glia_CELLs_inLUNG/工作簿2.csv"))
+GRPINFO<-GetGroups(colData[,2,drop=T])
+
+un
