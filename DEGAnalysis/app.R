@@ -233,7 +233,7 @@ server <- function(input, output, session) {
       resOrdered<-PrefilterDF(ExprTable = countData,Group = colData,SEQtypeDfTypeloggedInput = input$SEQtypeDfTypeloggedInput,doBatchremove = input$FilterBatchInput,NumFilter = input$NumFilterInput,FilterPC = input$FilterPCInput,Spec = input$SpecInput)
       PCAplot<-PlotPCA(Mat = resOrdered,group = colData[,2,drop=T],counts = input$SEQtypeDfTypeloggedInput=="COUNTRAW",loged = T,Ellipse = T,NumOfGenes = 5000)
       CRRplot<-PlotCorr(Mat = resOrdered,group = colData[,2,drop=T],counts = input$SEQtypeDfTypeloggedInput=="COUNTRAW",loged = T,Ellipse = T,NumOfGenes = 5000)
-      
+      showNotification(input$selectA)
       Flag <- T
       shinyjs::enable("downloadData")
     }, error = function(e) {
@@ -319,8 +319,8 @@ shinyApp(ui = ui, server = server)
 # dd<-list(`A`=data.frame(group=c("A", "B")))
 # dd$A
 
-
-colData <- (read_csv ("~/Documents/A_onGoing/MemGradFillin2Days/YMJ_LK99/QZH_Glia_CELLs_inLUNG/工作簿2.csv"))
-GRPINFO<-GetGroups(colData[,2,drop=T])
-
-un
+# 
+# colData <- (read_csv ("~/Documents/A_onGoing/MemGradFillin2Days/YMJ_LK99/QZH_Glia_CELLs_inLUNG/工作簿2.csv"))
+# GRPINFO<-GetGroups(colData[,2,drop=T])
+# 
+# un
