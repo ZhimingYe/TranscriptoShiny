@@ -1,4 +1,17 @@
-
+read_file. <- function(file_path) {
+  file_extension <- tolower(tools::file_ext(file_path))
+  if (file_extension == "xlsx") {
+    data <- read_excel(file_path)
+  } else if (file_extension == "tsv") {
+    data <- read.delim(file_path,sep = "\t")
+  } else if (file_extension == "csv") {
+    data <- read_csv(file_path)
+  } else {
+    stop("Unsupported file type. Please provide a file with .xlsx, .tsv, or .csv extension.")
+  }
+  
+  return(data)
+}
 PrefilterDF<-function(ExprTable,Group,SEQtypeDfTypeloggedInput,doBatchremove,NumFilter,FilterPC,Spec){
   SEQtype<-case_when(SEQtypeDfTypeloggedInput%in%c("COUNTRAW","TPMRAW","TPMLOG")~"htseq",
                      SEQtypeDfTypeloggedInput%in%c("LSRAW","LSLOG")~"LS")
@@ -80,7 +93,7 @@ PrefilterDF<-function(ExprTable,Group,SEQtypeDfTypeloggedInput,doBatchremove,Num
   }
   ExprTable2<-ExprTable2[rowSums(ExprTable2>0)>NumFilter,]
   
-  if(sum(((Group[,2,drop=T])%>%table()%>%as.numeric())>=3)<length((Group[,3,drop=T])%>%table())){
+  if(sum(((Group[,2,drop=T])%>%table()%>%as.numeric())>=3)<length((Group[,2,drop=T])%>%table())){
     stop("at least 3 sample each group needed")
   }
   if(doBatchremove){
@@ -217,7 +230,7 @@ GenDEGtable<-function(Expr,GroupInput,CprString){
   KeepVec<-GroupInput%in%c(CprA,CprB)
   GroupVec<-GroupInput[KeepVec]
   ExprT<-Expr[,KeepVec]
-  library(DESeq2)
+  
   CprDF<-data.frame(ID=colnames(ExprT),Group=GroupVec)
   showNotification("Trying Perform DESeq2 analysis, Please wait...")
   ddsx<-DESeqDataSetFromMatrix(countData = round(ExprT), colData = CprDF, design = ~Group)
@@ -227,8 +240,7 @@ GenDEGtable<-function(Expr,GroupInput,CprString){
   showNotification("Waiting DESeq2 response... ")
   CPRx <- lfcShrink(ddsx, contrast=contrastx, type="ashr")
   CPRxA <- as.data.frame(CPRx)
-  library(edgeR)
-  library(limma)
+
   showNotification("Trying Perform edgeR analysis, Please wait...")
   group <- factor(GroupVec)
   y <- DGEList(counts = round(ExprT), group = group)
@@ -267,10 +279,8 @@ GenDEGtable.Norm<-function(Expr,GroupInput,CprString){
   KeepVec<-GroupInput%in%c(CprA,CprB)
   GroupVec<-GroupInput[KeepVec]
   ExprT<-Expr[,KeepVec]
-  library(DESeq2)
   CprDF<-data.frame(ID=colnames(ExprT),Group=GroupVec)
   showNotification("Trying Perform limma analysis, Please wait...")
-  library(limma)
   design = model.matrix(~0+GroupVec)
   colnames(design) = gsub("GroupVec","",colnames(design))
   x <- c(CprString)

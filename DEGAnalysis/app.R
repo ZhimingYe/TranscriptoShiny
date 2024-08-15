@@ -9,17 +9,21 @@ library(ggplot2)
 library(DT)
 library(readr)
 library(limma)
+library(DESeq2)
 library(ggplot2)
+library(edgeR)
+library(limma)
 library(plyr)
 library(scales)
 library(grid)
 library(FactoMineR)
 library(factoextra)
 library(ggbiplot)
-library(edgeR)
 library(ComplexHeatmap)
 library(Mfuzz)
 library(RColorBrewer)
+library(readr)
+library(readxl)
 ui <- fluidPage(
   useShinyjs(),
   titlePanel("Differential Expression Analysis"),
@@ -38,22 +42,11 @@ ui <- fluidPage(
       div(
         style = "text-align: left;",
         tags$footer(
-          paste0("Please save as CSV using Excel (File->save as comma seperated)"),
-          style = "font-size: 13px; color: black;"
-        )
-      ),
-      div(
-        style = "text-align: left;",
-        tags$footer(paste0("WARNING: DONOT use UTF8 csv!"), style = "font-size: 13px; color: red;")
-      ),
-      div(
-        style = "text-align: left;",
-        tags$footer(
           paste0("Row: Gene; Column: Sample, Sample name MUST BE unique"),
           style = "font-size: 13px; color: red;"
         )
       ),
-      fileInput("countMatrix", "Upload Expression Matrix (CSV)", accept = "text/csv"),
+      fileInput("countMatrix", "Upload Expression Matrix", accept = c("text/csv","application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")),
       div(
         style = "text-align: left;",
         tags$footer(
@@ -79,7 +72,7 @@ ui <- fluidPage(
           style = "font-size: 13px; color: orange;"
         )
       ),
-      fileInput("colData", "Upload Group Information (CSV)", accept = "text/csv"),
+      fileInput("colData", "Upload Group Information", accept = c("text/csv","application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")),
       actionButton("UploadFin", "Access Programme"),
       hr(),
       radioButtons(
@@ -193,7 +186,13 @@ server <- function(input, output, session) {
     }
   })
   observeEvent(input$UploadFin,{tryCatch({
-    colData <- read_csv(input$colData$datapath)
+    if(input$passwd!="ylab123456@"){
+      stop("Wrong Password!")
+    }
+    else{
+      showNotification("Welcome!")
+    }
+    colData <- read_file.(input$colData$datapath)
     GRPINFO<<-GetGroups(colData[,2,drop=T])
     NAME1List<-GRPINFO[["A"]]$GroupOrder
     names(NAME1List)<-GRPINFO[["A"]]$Cpr
@@ -214,8 +213,11 @@ server <- function(input, output, session) {
     
     
     tryCatch({
-      countData <- read_csv(input$countMatrix$datapath)
-      colData <- read_csv(input$colData$datapath)
+      if(input$passwd!="ylab123456@"){
+        stop("Wrong Password!")
+      }
+      countData <- read_file.(input$countMatrix$datapath)
+      colData <- read_file.(input$colData$datapath)
       if(input$NumFilterInput>ncol(countData)*0.75){
         stop("Not enough column to filter")
       }
@@ -239,8 +241,10 @@ server <- function(input, output, session) {
         set.seed(2024)
         showNotification("Mfuzz Clustering...")
         cl <<- mfuzz(MfuzzDs1,c=input$MUZZN,m= mestimate(MfuzzDs1))
-        DEGtable<<-cl[["cluster"]]%>%as.data.frame()
+        DEGtable<-cl[["cluster"]]%>%as.data.frame()
+        DEGtable<-DEGtable%>%rownames_to_column(var="GID")
         colnames(DEGtable)<-"Belong to Cluster"
+        DEGtable<<-DEGtable
         MfuzzDs1a<<-MfuzzDs1
         output$volcanoPlot <- renderPlot({mfuzz.plot(MfuzzDs1a, cl = cl,time.labels =strsplit(GRPINFO[["B"]]$Cpr[GRPINFO[["B"]]$GroupOrder==input$selectB], "-")[[1]],  mfrow = c(3, 5), new.window = FALSE, colo = rev(brewer.pal(11, "RdBu")))})
         Flag <<- T
