@@ -12,6 +12,8 @@ read_file. <- function(file_path) {
   
   return(data)
 }
+
+
 PrefilterDF<-function(ExprTable,Group,SEQtypeDfTypeloggedInput,doBatchremove,NumFilter,FilterPC,Spec){
   SEQtype<-case_when(SEQtypeDfTypeloggedInput%in%c("COUNTRAW","TPMRAW","TPMLOG")~"htseq",
                      SEQtypeDfTypeloggedInput%in%c("LSRAW","LSLOG")~"LS")
@@ -89,7 +91,8 @@ PrefilterDF<-function(ExprTable,Group,SEQtypeDfTypeloggedInput,doBatchremove,Num
     ExprTable2<-round(ExprTable2)
   }
   if(sum(rowSums(ExprTable2>0)>NumFilter)>(nrow(ExprTable2)*0.75)){
-    showNotification("More than half feature low express! please check",type = "warning")
+    showNotification(paste0("More than half feature low express! will Only keep",(sum(rowSums(ExprTable2>0)>NumFilter))),type = "warning")
+    
   }
   ExprTable2<-ExprTable2[rowSums(ExprTable2>0)>NumFilter,]
   
@@ -111,7 +114,7 @@ PrefilterDF<-function(ExprTable,Group,SEQtypeDfTypeloggedInput,doBatchremove,Num
     })
   }
   ExprTable2<-as.data.frame(ExprTable2)
-  load("~/Documents/4Fun/TranscriptoShiny/GeneDBBiomart.RData")
+  load("./GeneDBBiomart.RData")
   ncH<-protein_coding_genesHuman%>%dplyr::filter(gene_biotype!="protein_coding")
   ncM<-protein_coding_genesMouse%>%dplyr::filter(gene_biotype!="protein_coding")
   pcH<-protein_coding_genesHuman%>%dplyr::filter(gene_biotype=="protein_coding")
@@ -174,6 +177,39 @@ PrefilterDF<-function(ExprTable,Group,SEQtypeDfTypeloggedInput,doBatchremove,Num
     stop("Pre-filter unsuccessful. Please re-check")
   }
 }
+
+
+
+Get0ID<-function(x,SpecInput){
+  load("./GeneDBBiomart.RData")
+  outPut<-x
+  TYPEo<-SpecInput
+  Flaginternal<-F
+  if(sum(grepl("^ENSMU",outPut$GID[1:100]))>80){
+    colnames(outPut)[which(colnames(outPut)=="GID")]<-"ensembl_gene_id"
+    TYPEo<-"Mouse"
+    Flaginternal<-T
+  }
+  if(sum(grepl("^ENSG",outPut$GID[1:100]))>80){
+    colnames(outPut)[which(colnames(outPut)=="GID")]<-"ensembl_gene_id"
+    TYPEo<-"Human"
+    Flaginternal<-T
+  }
+  if(!Flaginternal){
+    colnames(outPut)[which(colnames(outPut)=="GID")]<-"external_gene_name"
+  }
+  if(TYPEo=="Human"){
+    outPut<-outPut%>%left_join(protein_coding_genesHuman)
+  }
+  if(TYPEo=="Mouse"){
+    outPut<-outPut%>%left_join(protein_coding_genesMouse)
+  }
+  return(outPut)
+  
+}
+
+
+
 CalcMad <- function(mat, num) {
   mads <- apply(mat, 1, mad)
   mat <- mat[rev(order(mads)), ]
@@ -210,6 +246,7 @@ PlotCorr<-function(Mat,group,Ellipse=T,counts=F,loged=T,NumOfGenes=5000){
   return(pic1)
 }
 GetGroups<-function(groups){
+  if(length(names(table(groups)))>8)stop("too many groups, please reduce!")
   groups3<-names(table(groups))
   combinations <- expand.grid(groups3, groups3)
   groups2<-names(table(groups))
@@ -220,6 +257,7 @@ GetGroups<-function(groups){
   combinations2<-combinations[combinations$Var1!=combinations$Var2,]
   combinations2<-combinations2%>%as.data.frame()
   combinations2<-combinations2%>%dplyr::mutate(Cpr=paste0(Var1,"-",Var2),GroupOrder=1:nrow(combinations2))
+  
   return(list(`A`=combinations2,`B`=all_permutationsA))
 }
 #

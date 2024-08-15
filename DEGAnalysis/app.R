@@ -18,7 +18,7 @@ library(scales)
 library(grid)
 library(FactoMineR)
 library(factoextra)
-library(ggbiplot)
+#gtools
 library(ComplexHeatmap)
 library(Mfuzz)
 library(RColorBrewer)
@@ -79,7 +79,7 @@ ui <- fluidPage(
         "SEQtypeDfTypeloggedInput",
         "Matrix Type",
         choices = list(
-          "Counts" = "COUNTRAW",
+          "Counts (RAW,Suggested)" = "COUNTRAW",
           "TPM (RAW)" = "TPMRAW",
           "TPM log-transformed" = "TPMLOG",
           "Not from Sequencing (RAW)" = "LSRAW",
@@ -150,7 +150,7 @@ ui <- fluidPage(
       hr(),
       conditionalPanel(
         condition = "input.SpecInput != 'Others'",
-        checkboxInput("checkbox", "Add gene annotation", value = F)),
+        checkboxInput("Adgeneann", "Add gene annotation", value = F)),
       actionButton("runDESeq", "Run DEG analysis"),
       downloadButton("downloadData", "Download Differential Genes CSV"),
       conditionalPanel(
@@ -173,7 +173,7 @@ ui <- fluidPage(
 )
 Flag <- F
 DEGtable<-data.frame()
-source("~/Documents/4Fun/TranscriptoShiny/TranscriptoShinyLib.R")
+source("./TranscriptoShinyLib.R")
 server <- function(input, output, session) {
   shinyjs::disable("runDESeq")
   observe({
@@ -190,7 +190,11 @@ server <- function(input, output, session) {
       stop("Wrong Password!")
     }
     else{
-      showNotification("Welcome!")
+      showNotification("Welcome!",type = "message")
+      output$SesionInfo <- renderDT({
+        (xfun::session_info() %>% as_tibble())[-c(1,3),]
+        
+      }, options = list(pageLength = 50, scrollX = T))
     }
     colData <- read_file.(input$colData$datapath)
     GRPINFO<<-GetGroups(colData[,2,drop=T])
@@ -198,15 +202,18 @@ server <- function(input, output, session) {
     names(NAME1List)<-GRPINFO[["A"]]$Cpr
     NAME2List<-GRPINFO[["B"]]$GroupOrder
     names(NAME2List)<-GRPINFO[["B"]]$Cpr
+    incProgress(0.5)
     updateSelectInput(session, "selectA", choices = NAME1List)
     updateSelectInput(session, "selectB", choices = NAME2List)
     shinyjs::enable("runDESeq")
     shinyjs::disable("downloadData")
     shinyjs::disable("downloadData2")
+    incProgress(1)
+    showNotification("Pre-check finish, please continue analysis",type = "message")
   }, error = function(e) {
     showNotification(paste("Error:", e$message), type = "error")
     Flag <- F
-  })})
+  })%>%withProgress(message = "Loading...")})
   observeEvent(input$runDESeq, {
     req(input$countMatrix, input$colData)
     
@@ -233,6 +240,7 @@ server <- function(input, output, session) {
         
         MfuzzMat<-apply(resOrdered,1,function(x)tapply(x,TgtFactor,mean))
         MfuzzMat<-MfuzzMat%>%t()%>%as.data.frame()
+        incProgress(0.5)
         showNotification("Preparing for Mfuzz Clustering...")
         MfuzzMat<-CalcMad(MfuzzMat,10000)
         library(SummarizedExperiment)
@@ -243,7 +251,10 @@ server <- function(input, output, session) {
         cl <<- mfuzz(MfuzzDs1,c=input$MUZZN,m= mestimate(MfuzzDs1))
         DEGtable<-cl[["cluster"]]%>%as.data.frame()
         DEGtable<-DEGtable%>%rownames_to_column(var="GID")
-        colnames(DEGtable)<-"Belong to Cluster"
+        colnames(DEGtable)[2]<-"Belong to Cluster"
+        if(input$Adgeneann){
+          DEGtable<-Get0ID(DEGtable,SpecInput = input$SpecInput)
+        }
         DEGtable<<-DEGtable
         MfuzzDs1a<<-MfuzzDs1
         output$volcanoPlot <- renderPlot({mfuzz.plot(MfuzzDs1a, cl = cl,time.labels =strsplit(GRPINFO[["B"]]$Cpr[GRPINFO[["B"]]$GroupOrder==input$selectB], "-")[[1]],  mfrow = c(3, 5), new.window = FALSE, colo = rev(brewer.pal(11, "RdBu")))})
@@ -251,24 +262,29 @@ server <- function(input, output, session) {
       }
       if(input$ANLtype=="G"){
         if(input$SEQtypeDfTypeloggedInput%in%c("COUNTRAW")){
+          incProgress(0.5)
           DEGtable<-GenDEGtable(Expr = resOrdered,GroupInput = colData[,2,drop=T],CprString = GRPINFO[["A"]]$Cpr[GRPINFO[["A"]]$GroupOrder==input$selectA])
-          
+          if(input$Adgeneann){
+            DEGtable<-Get0ID(DEGtable,SpecInput = input$SpecInput)
+          }
           DEGtable<<-DEGtable
         }
         else{
+          incProgress(0.5)
           DEGtable<-GenDEGtable.Norm(Expr = resOrdered,GroupInput = colData[,2,drop=T],CprString = GRPINFO[["A"]]$Cpr[GRPINFO[["A"]]$GroupOrder==input$selectA])
           DEGtable<<-DEGtable
         }
         dfa<-DEGtable%>%dplyr::filter(Package=="limma")
-        dfa$significant <- with(dfa, ifelse(Padj < 0.05 & abs(logFC) > 1, "Significant", "Not Significant"))
+        dfa$significant <- with(dfa, ifelse(Padj < 0.05 & abs(logFC) > 1, "Significant", ifelse(PValue < 0.05 & abs(logFC) > 0.25,"Might be significant","Not Significant")))
         px <- ggplot(dfa, aes(x=logFC, y=-log10(Padj))) +
           geom_point(aes(color=significant), alpha=0.8, size=1.75) +
-          scale_color_manual(values=c("#5ecd72", "#88a8d3")) +
+          scale_color_manual(values=c("#5ecd72", "#88a8d3","#665571")) +
           theme_minimal() +
           labs(title="Volcano Plot",
                x="Log2 Fold Change",
-               y="-Log10 p-value") +
-          theme(legend.position = "top")
+               y="-Log10 adj. p-value") +
+          theme(legend.position = "top")+theme_bw()
+        showNotification("Analysis Finished!",type = "message")
         output$volcanoPlot <- renderPlot({px})
         Flag <<- T
       }
@@ -311,14 +327,12 @@ server <- function(input, output, session) {
       showNotification(paste("Error:", e$message), type = "error")
       Flag <<- F
     }
-    )
+    )%>%withProgress(message = 'Processing...')
     
   })
-  output$SesionInfo <- renderDT({
-    (xfun::session_info() %>% as_tibble())[-c(1:3), ]
-  }, options = list(pageLength = 50, scrollX = T))
+  
   
 }
 
 
-shinyApp(ui = ui, server = server)
+shinyApp(ui = ui, server = server,enableBookmarking="disable")
