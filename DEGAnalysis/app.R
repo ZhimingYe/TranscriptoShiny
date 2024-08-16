@@ -145,6 +145,13 @@ ui <- fluidPage(
           min = 6,
           max = 15,
           value = 6
+        ),
+        sliderInput(
+          "madselection",
+          "Keep N Genes for clustering based on MAD",
+          min = 100,
+          max = 20000,
+          value = 10000
         )
       ),
       hr(),
@@ -244,7 +251,7 @@ server <- function(input, output, session) {
         MfuzzMat<-MfuzzMat%>%t()%>%as.data.frame()
         setProgress(0.5)
         showNotification("Preparing for Mfuzz Clustering...")
-        MfuzzMat<-CalcMad(MfuzzMat,10000)
+        MfuzzMat<-CalcMad(MfuzzMat,input$madselection)
         library(SummarizedExperiment)
         MfuzzDs1<-new('ExpressionSet',exprs=MfuzzMat%>%as.matrix())
         MfuzzDs1 <- standardise(MfuzzDs1)
