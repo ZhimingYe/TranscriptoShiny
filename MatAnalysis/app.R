@@ -250,9 +250,9 @@ server <- function(input, output, session) {
           net<-progenyNet.mouse
           rownames(resOrdered)<-stringr::str_to_title(rownames(resOrdered))
         }
-        incProgress(0.5)
+        setProgress(0.5)
         sample_acts <- run_mlm(mat=resOrdered, net=net, .source='source', .target='target',.mor='weight', minsize = 5)
-        incProgress(0.75)
+        setProgress(0.75)
         library(reshape2)
         sample_acts02<-dcast(source~condition,value.var = "score",data = sample_acts)
         gsva_es<-sample_acts02%>%column_to_rownames(var="source")
@@ -266,64 +266,64 @@ server <- function(input, output, session) {
           net<-collectriNet.mouse
           rownames(resOrdered)<-stringr::str_to_title(rownames(resOrdered))
         }
-        incProgress(0.5)
+        setProgress(0.5)
         sample_acts <- run_ulm(mat=resOrdered, net=net, .source='source', .target='target',.mor='weight', minsize = 5)
-        incProgress(0.75)
+        setProgress(0.75)
         library(reshape2)
         sample_acts02<-dcast(source~condition,value.var = "score",data = sample_acts)
         gsva_es<-sample_acts02%>%column_to_rownames(var="source")
       }
       
       if(grepl("ssGSEA",input$ANLtype)|grepl("xCell",input$ANLtype)){
-        incProgress(0.5)
+        setProgress(0.5)
         rownames(resOrdered)<- stringr::str_to_upper(rownames(resOrdered))
         needSTD<-T
       }
       if(grepl("ssGSEA",input$ANLtype)){
-        incProgress(0.5)
+        setProgress(0.5)
         resOrdered<-as.matrix(resOrdered)
       }
       if(input$ANLtype=="Imm_xCell"){
-        incProgress(0.5)
+        setProgress(0.5)
         gsva_es<-xCellAnalysis(resOrdered)
       }
       if(input$ANLtype=="Hallmark_ssGSEA"){
-        incProgress(0.5)
+        setProgress(0.5)
         sp1 <- ssgseaParam(resOrdered, h.all)
         gsva_es <- gsva(sp1)
       }
       if(input$ANLtype=="KeggOld_ssGSEA"){
-        incProgress(0.5)
+        setProgress(0.5)
         sp1 <- ssgseaParam(resOrdered, c2.cp.kegg_legacy)
         gsva_es <- gsva(sp1)
       }
       if(input$ANLtype=="KeggNew_ssGSEA"){
-        incProgress(0.5)
+        setProgress(0.5)
         sp1 <- ssgseaParam(resOrdered, c2.cp.kegg_medicus)
         gsva_es <- gsva(sp1)
       }
       if(input$ANLtype=="BioCarta_ssGSEA"){
-        incProgress(0.5)
+        setProgress(0.5)
         sp1 <- ssgseaParam(resOrdered, c2.cp.biocarta)
         gsva_es <- gsva(sp1)
       }
       if(input$ANLtype=="WikiPathways_ssGSEA"){
-        incProgress(0.5)
+        setProgress(0.5)
         sp1 <- ssgseaParam(resOrdered, c2.cp.wikipathways)
         gsva_es <- gsva(sp1)
       }
       if(input$ANLtype=="PID_ssGSEA"){
-        incProgress(0.5)
+        setProgress(0.5)
         sp1 <- ssgseaParam(resOrdered, c2.cp.pid)
         gsva_es <- gsva(sp1)
       }
       if(input$ANLtype=="OncoSig_ssGSEA"){
-        incProgress(0.5)
+        setProgress(0.5)
         sp1 <- ssgseaParam(resOrdered, c6.all)
         gsva_es <- gsva(sp1)
       }
       if(input$ANLtype=="SB_ssGSEA"){
-        incProgress(0.5)
+        setProgress(0.5)
         GMTobj <- getGmt(input$GMTFile$datapath)
         if(length(GMTobj)>850){
           stop("Too large GMT file, please use your self computer!")
@@ -332,7 +332,7 @@ server <- function(input, output, session) {
         gsva_es <- gsva(sp1)
       }
       if(input$ANLtype=="SB_ORA"){
-        incProgress(0.5)
+        setProgress(0.5)
         GMTobj <- read.gmt(input$GMTFile$datapath)
         
         if(length(names(table(GMTobj$term)))>=100){
@@ -345,7 +345,7 @@ server <- function(input, output, session) {
         colnames(GMTobj)[c(1,2)]<-c("source","target")
         sample_acts <- run_ora(mat=resOrdered, net=GMTobj, .source='source', .target='target', minsize = 5,n_up=round(0.15*nrow(resOrdered)))
         showNotification("If result is odd, please use filtering protein-coding gene function or use ssGSEA instead. ")
-        incProgress(0.75)
+        setProgress(0.75)
         library(reshape2)
         sample_acts02<-dcast(source~condition,value.var = "score",data = sample_acts)
         gsva_es<-sample_acts02%>%column_to_rownames(var="source")

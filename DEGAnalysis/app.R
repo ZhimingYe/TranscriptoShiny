@@ -202,13 +202,13 @@ server <- function(input, output, session) {
     names(NAME1List)<-GRPINFO[["A"]]$Cpr
     NAME2List<-GRPINFO[["B"]]$GroupOrder
     names(NAME2List)<-GRPINFO[["B"]]$Cpr
-    incProgress(0.5)
+    setProgress(0.5)
     updateSelectInput(session, "selectA", choices = NAME1List)
     updateSelectInput(session, "selectB", choices = NAME2List)
     shinyjs::enable("runDESeq")
     shinyjs::disable("downloadData")
     shinyjs::disable("downloadData2")
-    incProgress(1)
+    setProgress(1)
     showNotification("Pre-check finish, please continue analysis",type = "message")
   }, error = function(e) {
     showNotification(paste("Error:", e$message), type = "error")
@@ -242,7 +242,7 @@ server <- function(input, output, session) {
         
         MfuzzMat<-apply(resOrdered,1,function(x)tapply(x,TgtFactor,mean))
         MfuzzMat<-MfuzzMat%>%t()%>%as.data.frame()
-        incProgress(0.5)
+        setProgress(0.5)
         showNotification("Preparing for Mfuzz Clustering...")
         MfuzzMat<-CalcMad(MfuzzMat,10000)
         library(SummarizedExperiment)
@@ -264,7 +264,7 @@ server <- function(input, output, session) {
       }
       if(input$ANLtype=="G"){
         if(input$SEQtypeDfTypeloggedInput%in%c("COUNTRAW")){
-          incProgress(0.5)
+          setProgress(0.5)
           DEGtable<-GenDEGtable(Expr = resOrdered,GroupInput = colData[,2,drop=T],CprString = GRPINFO[["A"]]$Cpr[GRPINFO[["A"]]$GroupOrder==input$selectA])
           if(input$Adgeneann){
             DEGtable<-Get0ID(DEGtable,SpecInput = input$SpecInput)
@@ -272,7 +272,7 @@ server <- function(input, output, session) {
           DEGtable<<-DEGtable
         }
         else{
-          incProgress(0.5)
+          setProgress(0.5)
           DEGtable<-GenDEGtable.Norm(Expr = resOrdered,GroupInput = colData[,2,drop=T],CprString = GRPINFO[["A"]]$Cpr[GRPINFO[["A"]]$GroupOrder==input$selectA])
           DEGtable<<-DEGtable
         }
