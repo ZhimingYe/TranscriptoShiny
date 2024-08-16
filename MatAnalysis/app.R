@@ -240,7 +240,7 @@ server <- function(input, output, session) {
         resOrdered<-EnsemblConvertor(resOrdered,org = input$SpecInput)
       }
       needSTD<-F
-      load("~/Documents/4Fun/TranscriptoShiny/DEGAnalysis/AnnoPwDBsV2.RData")
+      load("../DEGAnalysis/AnnoPwDBsV2.RData")
       if(input$ANLtype=="P_DecoupleR"){
         if(input$SpecInput=="Human"){
           net<-progenyNet.human
