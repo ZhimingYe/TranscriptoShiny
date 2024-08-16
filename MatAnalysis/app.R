@@ -34,7 +34,7 @@ library(org.Hs.eg.db)
 library(org.Mm.eg.db)
 ui <- fluidPage(
   useShinyjs(),
-  titlePanel("Sample Scoring"),
+  titlePanel("Revealing biological functions by Sample Scoring"),
   sidebarLayout(
     sidebarPanel(
       div(
@@ -81,6 +81,7 @@ ui <- fluidPage(
         )
       ),
       fileInput("colData", "Upload Group Information", accept = c("text/csv","application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")),
+      fileInput("GMTFile", "Provide Self-built gene set (GMT files, Optional)", accept = c(".gmt")),
       actionButton("UploadFin", "Access Programme"),
       hr(),
       radioButtons(
@@ -151,9 +152,11 @@ ui <- fluidPage(
           "BioCarta ssGSEA"="BioCarta_ssGSEA",
           "WikiPathways ssGSEA"="WikiPathways_ssGSEA",
           "PID ssGSEA"="PID_ssGSEA",
-          "oncogenic sig ssGSEA"="OncoSig_ssGSEA"
+          "oncogenic sig ssGSEA"="OncoSig_ssGSEA",
+          "self-built gene set ssGSEA"="SB_ssGSEA",
+          "self-built gene set ORA"="SB_ORA"
         ),
-        selected = "G"
+        selected = "P_DecoupleR"
       ),
       actionButton("runDESeq", "Run analysis"),
       downloadButton("downloadData", "Download Result")
@@ -171,6 +174,22 @@ ui <- fluidPage(
 Flag <- F
 DEGtable<-data.frame()
 source("../DEGAnalysis/TranscriptoShinyLib.R")
+EnsemblConvertor<-function(x,org){
+  tpmset<-x
+  if(org=="Human"){
+    TPMgeneinfo<-bitr(rownames(tpmset),fromType = "ENSEMBL",toType = "SYMBOL",OrgDb = org.Mm.eg.db)
+  }
+  else{
+    TPMgeneinfo<-bitr(rownames(tpmset),fromType = "ENSEMBL",toType = "SYMBOL",OrgDb = org.Mm.eg.db)
+  }
+  tpmsetNAME<-tpmset%>%as.data.frame()%>%rownames_to_column(var="ENSEMBL")
+  tpmsetNAME<-tpmsetNAME%>%left_join(TPMgeneinfo)
+  tpmsetNAME<-tpmsetNAME[!is.na(tpmsetNAME$SYMBOL),]
+  tpmsetNAMESUM<-aggregate(tpmsetNAME[,-which(colnames(tpmsetNAME)%in%c("ENSEMBL","SYMBOL"))],by=list(SYMBOL=tpmsetNAME$SYMBOL),FUN="sum")
+  tpmsetNAMESUM<-tpmsetNAMESUM%>%as.data.frame()%>%column_to_rownames(var="SYMBOL")
+  return(tpmsetNAMESUM)
+}
+
 server <- function(input, output, session) {
   shinyjs::disable("runDESeq")
   observe({
@@ -302,6 +321,36 @@ server <- function(input, output, session) {
         incProgress(0.5)
         sp1 <- ssgseaParam(resOrdered, c6.all)
         gsva_es <- gsva(sp1)
+      }
+      if(input$ANLtype=="SB_ssGSEA"){
+        incProgress(0.5)
+        GMTobj <- getGmt(input$GMTFile$datapath)
+        if(length(GMTobj)>850){
+          stop("Too large GMT file, please use your self computer!")
+        }
+        sp1 <- ssgseaParam(resOrdered, GMTobj)
+        gsva_es <- gsva(sp1)
+      }
+      if(input$ANLtype=="SB_ORA"){
+        incProgress(0.5)
+        GMTobj <- read.gmt(input$GMTFile$datapath)
+        
+        if(length(names(table(GMTobj$term)))>=100){
+          stop("Too large GMT file, please use your self computer!")
+        }
+        GMTobj<-as.data.frame(GMTobj)
+        # [1] "term" "gene"
+        GMTobj$GT<-paste0(GMTobj$term,GMTobj$gene)
+        GMTobj<-GMTobj[!duplicated(GMTobj$GT),]
+        colnames(GMTobj)[c(1,2)]<-c("source","target")
+        sample_acts <- run_ora(mat=resOrdered, net=GMTobj, .source='source', .target='target', minsize = 5,n_up=round(0.15*nrow(resOrdered)))
+        showNotification("If result is odd, please use filtering protein-coding gene function or use ssGSEA instead. ")
+        incProgress(0.75)
+        library(reshape2)
+        sample_acts02<-dcast(source~condition,value.var = "score",data = sample_acts)
+        gsva_es<-sample_acts02%>%column_to_rownames(var="source")
+        # sp1 <- ssgseaParam(resOrdered, GMTFile)
+        # gsva_es <- gsva(sp1)
       }
       output$PCAplot <- renderPlot({
         if(needSTD){

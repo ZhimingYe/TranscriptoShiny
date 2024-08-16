@@ -217,21 +217,6 @@ Get0ID<-function(x,SpecInput){
   
 }
 
-EnsemblConvertor<-function(x,org){
-  tpmset<-x
-  if(org=="Human"){
-    TPMgeneinfo<-bitr(rownames(tpmset),fromType = "ENSEMBL",toType = "SYMBOL",OrgDb = org.Mm.eg.db)
-  }
-  else{
-    TPMgeneinfo<-bitr(rownames(tpmset),fromType = "ENSEMBL",toType = "SYMBOL",OrgDb = org.Mm.eg.db)
-  }
-  tpmsetNAME<-tpmset%>%as.data.frame()%>%rownames_to_column(var="ENSEMBL")
-  tpmsetNAME<-tpmsetNAME%>%left_join(TPMgeneinfo)
-  tpmsetNAME<-tpmsetNAME[!is.na(tpmsetNAME$SYMBOL),]
-  tpmsetNAMESUM<-aggregate(tpmsetNAME[,-which(colnames(tpmsetNAME)%in%c("ENSEMBL","SYMBOL"))],by=list(SYMBOL=tpmsetNAME$SYMBOL),FUN="sum")
-  tpmsetNAMESUM<-tpmsetNAMESUM%>%as.data.frame()%>%column_to_rownames(var="SYMBOL")
-  return(tpmsetNAMESUM)
-}
 
 
 CalcMad <- function(mat, num) {
