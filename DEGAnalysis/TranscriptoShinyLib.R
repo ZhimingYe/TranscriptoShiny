@@ -217,6 +217,35 @@ Get0ID<-function(x,SpecInput){
   
 }
 
+CorrEstimate0 <-
+  function(genegsvamatrix,
+           TargetSet = "HALLMARK_HYPOXIA",
+           UseMethod = "spearman") {
+    data <- genegsvamatrix%>%as.data.frame()
+    gene_name1 <- c()
+    gene_name2 <- c()
+    cor_r <- c()
+    pvalue <- c()
+    i = which(rownames(data) == TargetSet)
+    TargetNum<-nrow(data)
+    
+    for (r in 1:nrow(data)) {
+      g1 = rownames(data)[i]
+      g2 = rownames(data)[r]
+      c_r = cor(as.numeric(data[i, ]), as.numeric(data[r, ]), method = UseMethod)
+      p = cor.test(as.numeric(data[i, ]), as.numeric(data[r, ]), method =
+                     UseMethod)[[3]]
+      gene_name1 = c(gene_name1, g1)
+      gene_name2 = c(gene_name2, g2)
+      cor_r = c(cor_r, c_r)
+      pvalue = c(pvalue, p)
+      
+      setProgress((r/TargetNum)-0.01)
+      
+    }
+    data_cor <- data.frame(gene_name1, gene_name2, cor_r, pvalue)
+    return(data_cor)
+  }
 
 
 CalcMad <- function(mat, num) {
