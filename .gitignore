@@ -51,3 +51,4 @@ rsconnect/
 *.csv
 *.gmt
 *-log
+*.html
