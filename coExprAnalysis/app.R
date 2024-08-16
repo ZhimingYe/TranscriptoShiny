@@ -34,7 +34,7 @@ library(readxl)
 # library(org.Mm.eg.db)
 ui <- fluidPage(
   useShinyjs(),
-  titlePanel("Batch Correlation Analysis of Numeric Matrix"),
+  titlePanel("co-expression Analysis based on NMF"),
   sidebarLayout(
     sidebarPanel(
       div(
@@ -130,22 +130,24 @@ ui <- fluidPage(
         value = F
       ),
       hr(),
-      radioButtons(
-        "ANLtype",
-        "Analysis Type",
-        choices = list(
-          "Pearson Correlation" = "PCC",
-          "Spearman Correlation" = "SPC"
-        ),
-        selected = "PCC"
+      actionButton("runDESeq", "Select best cluster nums."),
+      hr(),
+      sliderInput(
+        "Target",
+        "Select the elbow K",
+        min = 2,
+        max = 20,
+        value = 4
       ),
-      textInput("Target","Target Gene"),
-      actionButton("runDESeq", "Run analysis"),
-      downloadButton("downloadData", "Download Result")
+      actionButton("runnmf", "Run analysis"),
+      hr(),
+      downloadButton("downloadData", "Download Gene Contribution"),
+      downloadButton("downloadData2", "Download Module-Sample Contribution")
     ),
     mainPanel(
       navset_card_underline(
-        nav_panel("Result Preview", DTOutput("CorrOut")),
+        nav_panel("Select num of Clusters", plotOutput("PCAplot")),
+        nav_panel("Module Contribution on sample", plotOutput("PCCCR",height = "600px")),
         nav_panel("sessionInfo", DTOutput("SesionInfo")),
         full_screen = T,
         wrapper = card_body(height = "1200px")
@@ -158,11 +160,14 @@ DEGtable<-data.frame()
 source("../DEGAnalysis/TranscriptoShinyLib.R")
 server <- function(input, output, session) {
   shinyjs::disable("runDESeq")
+  shinyjs::disable("runnmf")
   observe({
     if (Flag) {
       shinyjs::enable("downloadData")
+      shinyjs::enable("downloadData2")
     } else {
       shinyjs::disable("downloadData")
+      shinyjs::disable("downloadData2")
     }
   })
   observeEvent(input$UploadFin,{tryCatch({
@@ -177,7 +182,9 @@ server <- function(input, output, session) {
       }, options = list(pageLength = 50, scrollX = T))
     }
     shinyjs::enable("runDESeq")
+    shinyjs::disable("runnmf")
     shinyjs::disable("downloadData")
+    shinyjs::disable("downloadData2")
     showNotification("Pre-check finish, please continue analysis",type = "message")
   }, error = function(e) {
     showNotification(paste("Error:", e$message), type = "error")
@@ -191,7 +198,9 @@ server <- function(input, output, session) {
         stop("Wrong Password!")
       }
       shinyjs::disable("runDESeq")
+      shinyjs::disable("runnmf")
       shinyjs::disable("downloadData")
+      shinyjs::disable("downloadData2")
       countData <- read_file.(input$countMatrix$datapath)
       colData <- read_file.(input$colData$datapath)
       
@@ -203,30 +212,12 @@ server <- function(input, output, session) {
         resOrdered<-edgeR::cpm(resOrdered)
       }
       
-      if(!input$Target%in%rownames(resOrdered)){
-        stop("Target not in Expression matrix")
-      }
-      if(input$ANLtype=="PCC"){
-        CorrOutDF<-CorrEstimate0(resOrdered,TargetSet = input$Target,UseMethod = "pearson")
-      }
-      else{
-        CorrOutDF<-CorrEstimate0(resOrdered,TargetSet = input$Target,UseMethod = "spearman")
-      }
-      output$CorrOut <- renderDT({
-        CorrOutDF
-        
-      }, options = list(pageLength = 50, scrollX = T))
+      ### add step1 code
       
-      output$downloadData <- downloadHandler(
-        filename = function() {
-          "Correlation.csv"
-        },
-        content = function(file) {
-          write.csv(as.data.frame(CorrOutDF), file)
-        }
-      )
-      shinyjs::enable("runDESeq")
-      shinyjs::enable("downloadData")
+      shinyjs::disable("runDESeq")
+      shinyjs::enable("runnmf")
+      shinyjs::disable("downloadData")
+      shinyjs::disable("downloadData2")
     }, error = function(e) {
       showNotification(paste("Error:", e$message), type = "error")
       shinyjs::enable("runDESeq")
