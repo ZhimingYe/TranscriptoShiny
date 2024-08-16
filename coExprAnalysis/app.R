@@ -12,6 +12,7 @@ library(limma)
 # library(DESeq2)
 library(ggplot2)
 library(edgeR)
+
 # library(limma)
 library(plyr)
 # library(scales)
@@ -19,7 +20,7 @@ library(plyr)
 # library(FactoMineR)
 # library(factoextra)
 #gtools
-# library(ComplexHeatmap)
+library(ComplexHeatmap)
 # library(Mfuzz)
 # library(RColorBrewer)
 library(readr)
@@ -32,6 +33,7 @@ library(readxl)
 # library(GSVA)
 # library(org.Hs.eg.db)
 # library(org.Mm.eg.db)
+library(RcppML)
 ui <- fluidPage(
   useShinyjs(),
   titlePanel("co-expression Analysis based on NMF"),
@@ -112,6 +114,13 @@ ui <- fluidPage(
         ),
         selected = "Human"
       ),
+      div(
+        style = "text-align: left;",
+        tags$footer(
+          paste0("STRONGly Suggested keep Protein coding genes only"),
+          style = "font-size: 13px; color: orange;"
+        )
+      ),
       conditionalPanel(
         condition = "input.SpecInput != 'Others'",
         radioButtons(
@@ -130,10 +139,24 @@ ui <- fluidPage(
         value = F
       ),
       hr(),
+      sliderInput(
+        "madselection",
+        "Keep N Genes based on MAD",
+        min = 2000,
+        max = 15000,
+        value = 7500
+      ),
+      sliderInput(
+        "testkrange",
+        "Test K range (+/-3)",
+        min = 4,
+        max = 17,
+        value = 5
+      ),
       actionButton("runDESeq", "Select best cluster nums."),
       hr(),
       sliderInput(
-        "Target",
+        "TargetKK",
         "Select the elbow K",
         min = 2,
         max = 20,
@@ -146,8 +169,7 @@ ui <- fluidPage(
     ),
     mainPanel(
       navset_card_underline(
-        nav_panel("Select num of Clusters", plotOutput("PCAplot")),
-        nav_panel("Module Contribution on sample", plotOutput("PCCCR",height = "600px")),
+        nav_panel("OutPut", plotOutput("PCAplot",height = "600px")),
         nav_panel("sessionInfo", DTOutput("SesionInfo")),
         full_screen = T,
         wrapper = card_body(height = "1200px")
@@ -190,6 +212,7 @@ server <- function(input, output, session) {
     showNotification(paste("Error:", e$message), type = "error")
     Flag <- F
   })})
+  TargetDF<-NULL
   observeEvent(input$runDESeq, {
     req(input$countMatrix, input$colData)
     
@@ -211,9 +234,18 @@ server <- function(input, output, session) {
       if(input$SEQtypeDfTypeloggedInput=="COUNTRAW"){
         resOrdered<-edgeR::cpm(resOrdered)
       }
-      
-      ### add step1 code
-      
+      setProgress(0.5)
+      if(input$madselection>nrow(resOrdered)-50){
+        stop("Too many gene to keep, please reduce!")
+      }
+      resOrdered<-CalcMad(resOrdered,input$madselection)
+      showNotification("Waiting...This step is very slow...")
+      showNotification("It might use 30 min to 2 min")
+      showNotification("Please be PATIENT!",type = "message")
+      set.seed(2024)
+      cv_data <- RcppML::crossValidate(resOrdered, k = (input$testkrange-3):(input$testkrange+3), reps = 7)
+      TargetDF<<-resOrdered
+      output$PCAplot <- renderPlot({plot(cv_data)+ylab("Mean Squared Error")})
       shinyjs::disable("runDESeq")
       shinyjs::enable("runnmf")
       shinyjs::disable("downloadData")
@@ -221,6 +253,55 @@ server <- function(input, output, session) {
     }, error = function(e) {
       showNotification(paste("Error:", e$message), type = "error")
       shinyjs::enable("runDESeq")
+      shinyjs::disable("downloadData")
+      shinyjs::disable("downloadData2")
+      shinyjs::disable("runnmf")
+      Flag <<- F
+    }
+    )%>%withProgress(message = 'Processing...')
+  })
+  
+  observeEvent(input$runnmf, {
+    
+    tryCatch({
+      if(input$passwd!="ylab123456@"){
+        stop("Wrong Password!")
+      }
+      shinyjs::disable("runDESeq")
+      shinyjs::disable("runnmf")
+      shinyjs::disable("downloadData")
+      shinyjs::disable("downloadData2")
+      
+      MODEL <- RcppML::nmf(TargetDF, k =input$TargetKK, seed=2024)
+      output$downloadData <- downloadHandler(
+        filename = function() {
+          "GeneContribution.csv"
+        },
+        content = function(file) {
+          write.csv(as.data.frame(MODEL@w), file)
+        }
+      )
+      output$downloadData2 <- downloadHandler(
+        filename = function() {
+          "Contribution2Sample.csv"
+        },
+        content = function(file) {
+          write.csv(as.data.frame(MODEL@h), file)
+        }
+      )
+      shinyjs::enable("runDESeq")
+      shinyjs::disable("runnmf")
+      shinyjs::enable("downloadData")
+      shinyjs::enable("downloadData2")
+      # TargetDF<<-resOrdered
+      output$PCAplot <- renderPlot({Heatmap((MODEL@h)%>%as.matrix(),name="NMF")})
+      
+    }, error = function(e) {
+      showNotification(paste("Error:", e$message), type = "error")
+      shinyjs::enable("runDESeq")
+      shinyjs::disable("downloadData")
+      shinyjs::disable("downloadData2")
+      shinyjs::disable("runnmf")
       Flag <<- F
     }
     )%>%withProgress(message = 'Processing...')
