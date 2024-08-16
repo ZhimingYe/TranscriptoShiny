@@ -31,7 +31,7 @@ ui <- fluidPage(
     sidebarPanel(
       div(
         style = "text-align: center;",
-        tags$footer(paste0("Version 1.0 Author: Zhiming Ye"), style = "font-size: 12px; color: grey;")
+        tags$footer(paste0("Version 0.1.2 Author: Zhiming Ye"), style = "font-size: 12px; color: grey;")
       ),
       div(
         style = "text-align: center;",
@@ -161,7 +161,7 @@ ui <- fluidPage(
     mainPanel(
       navset_card_underline(
         nav_panel("PCA", plotOutput("PCAplot")),
-        nav_panel("Pearson Correlation", plotOutput("PCCCR")),
+        nav_panel("Pearson Correlation", plotOutput("PCCCR",height = "600px")),
         nav_panel("DEG analysis", plotOutput("volcanoPlot")),
         nav_panel("DEG table", DTOutput("table")),
         nav_panel("sessionInfo", DTOutput("SesionInfo")),
@@ -225,6 +225,8 @@ server <- function(input, output, session) {
       }
       countData <- read_file.(input$countMatrix$datapath)
       colData <- read_file.(input$colData$datapath)
+      shinyjs::disable("runDESeq")
+      shinyjs::disable("downloadData")
       if(input$NumFilterInput>ncol(countData)*0.75){
         stop("Not enough column to filter")
       }
@@ -320,11 +322,13 @@ server <- function(input, output, session) {
         }
       )
       shinyjs::enable("downloadData")
+      shinyjs::enable("runDESeq")
       if(input$FilterBatchInput|input$SEQtypeDfTypeloggedInput%in%c("LSRAW","LSLOG")){
         shinyjs::enable("downloadData2")
       }
     }, error = function(e) {
       showNotification(paste("Error:", e$message), type = "error")
+      shinyjs::enable("runDESeq")
       Flag <<- F
     }
     )%>%withProgress(message = 'Processing...')
