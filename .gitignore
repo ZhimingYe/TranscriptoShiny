@@ -50,6 +50,7 @@ po/*~
 rsconnect/
 *.csv
 *.gmt
+*.qmd
 *-log
 *.html
 *.gson
