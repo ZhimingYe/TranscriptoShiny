@@ -368,6 +368,128 @@ GenDEGtable.Norm<-function(Expr,GroupInput,CprString){
   return(tmpOut%>%dplyr::select(logFC,P.Value,adj.P.Val)%>%dplyr::rename(PValue=P.Value,Padj=adj.P.Val)%>%dplyr::mutate(Package="limma")%>%rownames_to_column(var="GID"))
 }
 
+ConvertEnsembl2Symbol<-function(x,Org){
+  if(Org=="Mouse"){
+    gdf<-bitr(df$ENSEMBL,fromType = "ENSEMBL",toType = "SYMBOL",OrgDb = org.Mm.eg.db)
+    gdf$SYMBOL%>%stringr::str_to_upper()
+    df<-df%>%left_join(gdf)
+    return(df)
+  }
+  else{
+    gdf<-bitr(df$ENSEMBL,fromType = "ENSEMBL",toType = "SYMBOL",OrgDb = org.Hs.eg.db)
+    df<-df%>%left_join(gdf)
+    return(df)
+  }
+}
+MouseSymbol2Human<-function(x){
+  x$SYMBOL<-stringr::str_to_upper(x$SYMBOL)
+  return(x)
+}
+BuildMultigroupDEGlist<-function(Gene,Group,FromType = "SYMBOL",OrgDB=org.Hs.eg.db){
+  Genetable <- data.frame(Gene = Gene, Group = Group)
+  Genetable<-Genetable[!is.na(Genetable$Gene),]
+  Genetable$testcol<-paste0(Genetable$Gene,"_",Genetable$Group)
+  Genetable<-Genetable[!duplicated(Genetable$testcol),]
+  ENTREZIDtable <- clusterProfiler::bitr(Genetable$Gene, fromType = FromType,
+                                         toType = "ENTREZID", OrgDb = OrgDB)
+  colnames(ENTREZIDtable)[1] <- "Gene"
+  Genetable <- Genetable %>% left_join(ENTREZIDtable)
+  return(Genetable)
+}
+Ranked.GS<-function(Gene,log2FC,FromType = "SYMBOL",OrgDB=org.Hs.eg.db){
+  Genetable<-data.frame(Gene=Gene,log2FC=log2FC)
+  Genetable<-Genetable[!is.na(Genetable$Gene),]
+  ENTREZIDtable<-clusterProfiler::bitr(Genetable$Gene,fromType = FromType,toType = "ENTREZID",OrgDb = OrgDB)
+  colnames(ENTREZIDtable)[1]<-"Gene"
+  Genetable<-Genetable%>%left_join(ENTREZIDtable)%>%arrange(desc(log2FC))
+  GSElist<-as.numeric(Genetable$log2FC)
+  names(GSElist)<-Genetable$ENTREZID
+  GSElist = sort(GSElist, decreasing = TRUE)
+  return(GSElist)
+}
+doGO<-function(MultiGroup="SG",GS,ont="BP",PVal=0.01,QVal=0.05,FromType = "SYMBOL",OrgDB=org.Hs.eg.db){
+  if(MultiGroup=="SG"){
+    GeneList<-GS%>%unique()%>%bitr(fromType = FromType,toType = "ENTREZID",OrgDb = OrgDB)
+    EnrichGO<-enrichGO(GeneList$ENTREZID,ont = ont,OrgDb = OrgDB,pvalueCutoff = PVal,qvalueCutoff = QVal)%>%setReadable(OrgDb=OrgDB,keyType = "ENTREZID")
+  }
+  if(MultiGroup=="MG"){
+    EnrichGO<-compareCluster(ENTREZID~Group, data=GS, fun="enrichGO",ont = ont,OrgDb = OrgDB,pvalueCutoff = PVal,qvalueCutoff = QVal)%>%setReadable(OrgDb=OrgDB,keyType = "ENTREZID")
+  }
+  if(MultiGroup=="GSEA"){
+    EnrichGO<-gseGO(GS,pvalueCutoff = PVal,ont = ont,OrgDb = OrgDB)%>%setReadable(OrgDb=OrgDB,keyType = "ENTREZID")
+  }
+  return(EnrichGO)
+}
+doKEGG<-function(MultiGroup="SG",GS,PVal=0.01,QVal=0.05,FromType = "SYMBOL",Organism="hsa",OrgDB=org.Hs.eg.db){
+  library(gson)
+  KEGGgson<-read.gson("../DEGAnalysis/KEGG_human.gson")
+  if(MultiGroup=="SG"){
+    GeneList<-GS%>%unique()%>%bitr(fromType = FromType,toType = "ENTREZID",OrgDb = OrgDB)
+    EnrichKEGG<-enricher(GeneList$ENTREZID,pvalueCutoff = PVal,qvalueCutoff = QVal,gson = KEGGgson)%>%setReadable(OrgDb=OrgDB,keyType = "ENTREZID")
+  }
+  if(MultiGroup=="MG"){
+    EnrichKEGG<-compareCluster(ENTREZID~Group, data=GS, fun="enrichr",pvalueCutoff = PVal,qvalueCutoff = QVal,gson = KEGGgson)%>%setReadable(OrgDb=OrgDB,keyType = "ENTREZID")
+  }
+  if(MultiGroup=="GSEA"){
+    EnrichKEGG<-GSEA(GS,pvalueCutoff = PVal,gson=KEGGgson)%>%setReadable(OrgDb=OrgDB,keyType = "ENTREZID")
+  }
+  return(EnrichKEGG)
+}
+doMKEGG<-function(MultiGroup="SG",GS,PVal=0.01,QVal=0.05,FromType = "SYMBOL",Organism="hsa",OrgDB=org.Hs.eg.db){
+  library(gson)
+  MKEGGgson<-read.gson("../DEGAnalysis/MKEGG_human.gson")
+  if(MultiGroup=="SG"){
+    GeneList<-GS%>%unique()%>%bitr(fromType = FromType,toType = "ENTREZID",OrgDb = OrgDB)
+    EnrichKEGG<-enricher(GeneList$ENTREZID,pvalueCutoff = PVal,qvalueCutoff = QVal,gson = MKEGGgson)%>%setReadable(OrgDb=OrgDB,keyType = "ENTREZID")
+  }
+  if(MultiGroup=="MG"){
+    EnrichKEGG<-compareCluster(ENTREZID~Group, data=GS, fun="enrichr",pvalueCutoff = PVal,qvalueCutoff = QVal,gson = MKEGGgson)%>%setReadable(OrgDb=OrgDB,keyType = "ENTREZID")
+  }
+  if(MultiGroup=="GSEA"){
+    EnrichKEGG<-GSEA(GS,pvalueCutoff = PVal,gson=MKEGGgson)%>%setReadable(OrgDb=OrgDB,keyType = "ENTREZID")
+  }
+  return(EnrichKEGG)
+}
+doRA<-function(MultiGroup,GS,PVal=0.01,QVal=0.05,FromType = "SYMBOL",Organism="human",OrgDB=org.Hs.eg.db){
+  library(ReactomePA)
+  if(MultiGroup=="SG"){
+    GeneList<-GS%>%unique()%>%bitr(fromType = FromType,toType = "ENTREZID",OrgDb = OrgDB)
+    EnrichRA<-enrichPathway(GeneList$ENTREZID,pvalueCutoff = PVal,qvalueCutoff = QVal,organism=Organism)%>%setReadable(OrgDb=OrgDB,keyType = "ENTREZID")
+  }
+  if(MultiGroup=="MG"){
+    EnrichRA<-compareCluster(ENTREZID~Group, data=GS, fun="enrichPathway",pvalueCutoff = PVal,qvalueCutoff = QVal,organism=Organism)%>%setReadable(OrgDb=OrgDB,keyType = "ENTREZID")
+  }
+  if(MultiGroup=="GSEA"){
+    EnrichRA<-gsePathway(GS,pvalueCutoff = PVal,organism=Organism)%>%setReadable(OrgDb=OrgDB,keyType = "ENTREZID")
+  }
+  return(EnrichRA)
+}
+doDO<-function(MultiGroup,GS,ont="DO",PVal=0.01,QVal=0.05,FromType = "SYMBOL",OrgDB=org.Hs.eg.db){
+  if(MultiGroup=="SG"){
+    GeneList<-GS%>%unique()%>%bitr(fromType = FromType,toType = "ENTREZID",OrgDb = OrgDB)
+    EnrichGO<-enrichDO(GeneList$ENTREZID,ont = ont,pvalueCutoff = PVal,qvalueCutoff = QVal)%>%setReadable(OrgDb=OrgDB,keyType = "ENTREZID")
+  }
+  if(MultiGroup=="MG"){
+    EnrichGO<-compareCluster(ENTREZID~Group, data=GS, fun="enrichDO",ont = ont,pvalueCutoff = PVal,qvalueCutoff = QVal)%>%setReadable(OrgDb=OrgDB,keyType = "ENTREZID")
+  }
+  if(MultiGroup=="GSEA"){
+    EnrichGO<-gseDO(GS,pvalueCutoff = PVal)%>%setReadable(OrgDb=OrgDB,keyType = "ENTREZID")
+  }
+  return(EnrichGO)
+}
+doUniversal<-function(MultiGroup="SG",GS,PVal=0.01,QVal=0.05,FromType = "SYMBOL",DB,OrgDB=org.Hs.eg.db){
+  if(MultiGroup=="SG"){
+    EnrichKEGG<-enricher(GS,pvalueCutoff = PVal,qvalueCutoff = QVal,TERM2GENE = DB)
+  }
+  if(MultiGroup=="MG"){
+    EnrichKEGG<-compareCluster(ENTREZID~Group, data=GS, fun="enrichr",pvalueCutoff = PVal,qvalueCutoff = QVal,TERM2GENE = DB)
+  }
+  if(MultiGroup=="GSEA"){
+    EnrichKEGG<-GSEA(GS,pvalueCutoff = PVal,TERM2GENE = DB)
+  }
+  return(EnrichKEGG)
+}
+
 
 ggbiplot.internal <- function(pcobj, choices = 1:2, scale = 1, pc.biplot = TRUE,
                               obs.scale = 1 - scale, var.scale = scale,
