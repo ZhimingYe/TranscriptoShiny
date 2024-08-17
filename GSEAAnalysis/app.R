@@ -35,6 +35,7 @@ library(org.Hs.eg.db)
 library(org.Mm.eg.db)
 library(gson)
 library(ReactomePA)
+.PASSWORD<-readRDS("../DEGAnalysis/pwd.rds")
 ui <- fluidPage(
   useShinyjs(),
   titlePanel("Enrichment analysis"),
@@ -150,7 +151,7 @@ server <- function(input, output, session) {
     }
   })
   observeEvent(input$UploadFin,{tryCatch({
-    if(input$passwd!=""){
+    if(input$passwd!=.PASSWORD){
       stop("Wrong Password!")
     }
     else{
@@ -172,7 +173,7 @@ server <- function(input, output, session) {
     req(input$countMatrix)
     
     tryCatch({
-      if(input$passwd!=""){
+      if(input$passwd!=.PASSWORD){
         stop("Wrong Password!")
       }
       shinyjs::disable("runDESeq")

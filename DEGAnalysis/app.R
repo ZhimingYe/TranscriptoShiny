@@ -24,6 +24,7 @@ library(Mfuzz)
 library(RColorBrewer)
 library(readr)
 library(readxl)
+.PASSWORD<-readRDS("./pwd.rds")
 ui <- fluidPage(
   useShinyjs(),
   titlePanel("Differential Expression Analysis"),
@@ -193,7 +194,7 @@ server <- function(input, output, session) {
     }
   })
   observeEvent(input$UploadFin,{tryCatch({
-    if(input$passwd!="ylab123456@"){
+    if(input$passwd!=.PASSWORD){
       stop("Wrong Password!")
     }
     else{
@@ -227,7 +228,7 @@ server <- function(input, output, session) {
     
     
     tryCatch({
-      if(input$passwd!="ylab123456@"){
+      if(input$passwd!=.PASSWORD){
         stop("Wrong Password!")
       }
       countData <- read_file.(input$countMatrix$datapath)

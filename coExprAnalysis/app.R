@@ -35,6 +35,7 @@ library(readxl)
 # library(org.Mm.eg.db)
 library(RcppML)
 options(RcppML.threads = 1)
+.PASSWORD<-readRDS("../DEGAnalysis/pwd.rds")
 ui <- fluidPage(
   useShinyjs(),
   titlePanel("co-expression Analysis based on NMF"),
@@ -194,7 +195,7 @@ server <- function(input, output, session) {
     }
   })
   observeEvent(input$UploadFin,{tryCatch({
-    if(input$passwd!="ylab123456@"){
+    if(input$passwd!=.PASSWORD){
       stop("Wrong Password!")
     }
     else{
@@ -218,7 +219,7 @@ server <- function(input, output, session) {
     req(input$countMatrix, input$colData)
     
     tryCatch({
-      if(input$passwd!="ylab123456@"){
+      if(input$passwd!=.PASSWORD){
         stop("Wrong Password!")
       }
       shinyjs::disable("runDESeq")
@@ -265,7 +266,7 @@ server <- function(input, output, session) {
   observeEvent(input$runnmf, {
     
     tryCatch({
-      if(input$passwd!="ylab123456@"){
+      if(input$passwd!=.PASSWORD){
         stop("Wrong Password!")
       }
       shinyjs::disable("runDESeq")

@@ -32,6 +32,7 @@ library(readxl)
 # library(GSVA)
 # library(org.Hs.eg.db)
 # library(org.Mm.eg.db)
+.PASSWORD<-readRDS("../DEGAnalysis/pwd.rds")
 ui <- fluidPage(
   useShinyjs(),
   titlePanel("Batch Correlation Analysis of Numeric Matrix"),
@@ -166,7 +167,7 @@ server <- function(input, output, session) {
     }
   })
   observeEvent(input$UploadFin,{tryCatch({
-    if(input$passwd!="ylab123456@"){
+    if(input$passwd!=.PASSWORD){
       stop("Wrong Password!")
     }
     else{
@@ -187,7 +188,7 @@ server <- function(input, output, session) {
     req(input$countMatrix, input$colData)
     
     tryCatch({
-      if(input$passwd!="ylab123456@"){
+      if(input$passwd!=.PASSWORD){
         stop("Wrong Password!")
       }
       shinyjs::disable("runDESeq")
