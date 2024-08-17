@@ -34,6 +34,7 @@ library(readxl)
 # library(org.Hs.eg.db)
 # library(org.Mm.eg.db)
 library(RcppML)
+options(RcppML.threads = 1)
 ui <- fluidPage(
   useShinyjs(),
   titlePanel("co-expression Analysis based on NMF"),
