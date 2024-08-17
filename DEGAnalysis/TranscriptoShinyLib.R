@@ -461,7 +461,7 @@ doMKEGG<-function(MultiGroup="SG",GS,PVal=0.01,QVal=0.05,FromType = "SYMBOL",Org
   }
   return(EnrichKEGG)
 }
-setReadable22<-function(x,OrgDb,keyType){
+setReadable2<-function(x,OrgDb,keyType){
   x@readable<-F
   return(clusterProfiler::setReadable(x,OrgDb,keyType))
 }
@@ -469,13 +469,13 @@ doRA<-function(MultiGroup,GS,PVal=0.01,QVal=0.05,FromType = "SYMBOL",Organism="h
   library(ReactomePA)
   if(MultiGroup=="SG"){
     GeneList<-GS%>%unique()%>%bitr(fromType = FromType,toType = "ENTREZID",OrgDb = OrgDB)
-    EnrichRA<-enrichPathway(GeneList$ENTREZID,pvalueCutoff = PVal,qvalueCutoff = QVal,organism=Organism)%>%setReadable22(OrgDb=OrgDB,keyType = "ENTREZID")
+    EnrichRA<-enrichPathway(GeneList$ENTREZID,pvalueCutoff = PVal,qvalueCutoff = QVal,organism=Organism)%>%setReadable2(OrgDb=OrgDB,keyType = "ENTREZID")
   }
   if(MultiGroup=="MG"){
-    EnrichRA<-compareCluster(ENTREZID~Group, data=GS, fun="enrichPathway",pvalueCutoff = PVal,qvalueCutoff = QVal,organism=Organism)%>%setReadable22(OrgDb=OrgDB,keyType = "ENTREZID")
+    EnrichRA<-compareCluster(ENTREZID~Group, data=GS, fun="enrichPathway",pvalueCutoff = PVal,qvalueCutoff = QVal,organism=Organism)%>%setReadable2(OrgDb=OrgDB,keyType = "ENTREZID")
   }
   if(MultiGroup=="GSEA"){
-    EnrichRA<-gsePathway(GS,pvalueCutoff = PVal,organism=Organism)%>%setReadable22(OrgDb=OrgDB,keyType = "ENTREZID")
+    EnrichRA<-gsePathway(GS,pvalueCutoff = PVal,organism=Organism)%>%setReadable2(OrgDb=OrgDB,keyType = "ENTREZID")
   }
   return(EnrichRA)
 }
