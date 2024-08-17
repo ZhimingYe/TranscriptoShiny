@@ -2,8 +2,6 @@
 
 # Purpose
 
-I come from a wet lab where most members are not familiar with using R programming for sequencing data analysis. Therefore, this [Shiny](https://shiny.posit.co/) platform was built, to simplify the way to access and analyze data.
-
 Its aim is to simplify the analysis from mouse/cell cluture samples, which are often a small size. In detailed, the number of sample is limited below 52, due to it hosted on a server with only 4 Cores CPU + 8GB RAM. But if you want to analysis more, please modify code.
 
 Also, due to the resource limitation, password is required for analysis. The password is stored in `Pwd.rds` using a simple string object. To be honest, this approach only deters honest people but not those with ill intentions. However, it does have some effect in conserving lab resources.
