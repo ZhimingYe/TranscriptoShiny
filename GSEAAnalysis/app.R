@@ -43,7 +43,7 @@ ui <- fluidPage(
     sidebarPanel(
       div(
         style = "text-align: center;",
-        tags$footer(paste0("Version 0.1.2 Author: Zhiming Ye"), style = "font-size: 12px; color: grey;")
+        tags$footer(paste0("Version 0.2.2 Author: Zhiming Ye"), style = "font-size: 12px; color: grey;")
       ),
       div(
         style = "text-align: center;",
@@ -51,6 +51,10 @@ ui <- fluidPage(
       ),
       passwordInput("passwd", "Password"),
       hr(),
+      div(
+        style = "text-align: left;",
+        tags$footer(paste0("For background knowledge, please refer to https://yulab-smu.top/biomedical-knowledge-mining-book/"), style = "font-size: 13px; color: black;")
+      ),
       div(
         style = "text-align: left;",
         tags$footer(paste0("For ORA: The first column name is 'Gene'. If there is group information provide them as the second column. Name as 'Group'. "), style = "font-size: 13px; color: blue;")
@@ -218,69 +222,69 @@ server <- function(input, output, session) {
       }
       load("../DEGAnalysis/AnnoPwDBsV2_4CP.RData")
       if(input$ANLtype=="gobp"){
-        setProgress(0.5)
-        gsva_es <- doGO(MultiGroup = input$MultiGroup,GS=GSt,ont = "BP",PVal = 0.1,QVal = 0.5)
+        setProgress(0.6)
+        gsva_es <- doGO(MultiGroup = input$MultiGroup,GS=GSt,ont = "BP",PVal = 0.2,QVal = 0.6)
       }
       if(input$ANLtype=="gocc"){
-        setProgress(0.5)
-        gsva_es <- doGO(MultiGroup = input$MultiGroup,GS=GSt,ont = "CC",PVal = 0.1,QVal = 0.5)
+        setProgress(0.6)
+        gsva_es <- doGO(MultiGroup = input$MultiGroup,GS=GSt,ont = "CC",PVal = 0.2,QVal = 0.6)
       }
       if(input$ANLtype=="gomf"){
-        setProgress(0.5)
-        gsva_es <- doGO(MultiGroup = input$MultiGroup,GS=GSt,ont = "MF",PVal = 0.1,QVal = 0.5)
+        setProgress(0.6)
+        gsva_es <- doGO(MultiGroup = input$MultiGroup,GS=GSt,ont = "MF",PVal = 0.2,QVal = 0.6)
       }
       if(input$ANLtype=="kegg"){
-        setProgress(0.5)
-        gsva_es <- doKEGG(MultiGroup = input$MultiGroup,GS=GSt,PVal = 0.1,QVal = 0.5,GSONFILE = KEGGgson)
+        setProgress(0.6)
+        gsva_es <- doKEGG(MultiGroup = input$MultiGroup,GS=GSt,PVal = 0.2,QVal = 0.6,GSONFILE = KEGGgson)
       }
       if(input$ANLtype=="mkegg"){
-        setProgress(0.5)
-        gsva_es <- doMKEGG(MultiGroup = input$MultiGroup,GS=GSt,PVal = 0.1,QVal = 0.5,GSONFILE = MKEGGgson)
+        setProgress(0.6)
+        gsva_es <- doMKEGG(MultiGroup = input$MultiGroup,GS=GSt,PVal = 0.2,QVal = 0.6,GSONFILE = MKEGGgson)
       }
       if(input$ANLtype=="ra"){
-        setProgress(0.5)
-        gsva_es <- doRA(MultiGroup = input$MultiGroup,GS=GSt,PVal = 0.1,QVal = 0.5)
+        setProgress(0.6)
+        gsva_es <- doRA(MultiGroup = input$MultiGroup,GS=GSt,PVal = 0.2,QVal = 0.6)
       }
       if(input$ANLtype=="do"){
-        setProgress(0.5)
-        gsva_es <- doDO(MultiGroup = input$MultiGroup,GS=GSt,PVal = 0.1,QVal = 0.5)
+        setProgress(0.6)
+        gsva_es <- doDO(MultiGroup = input$MultiGroup,GS=GSt,PVal = 0.2,QVal = 0.6)
       }
       if(input$ANLtype=="hal"){
-        setProgress(0.5)
-        gsva_es <- doUniversal(MultiGroup = input$MultiGroup,GS=GSt,PVal = 0.1,QVal = 0.5,DB = h.all)
+        setProgress(0.6)
+        gsva_es <- doUniversal(MultiGroup = input$MultiGroup,GS=GSt,PVal = 0.2,QVal = 0.6,DB = h.all)
       }
       if(input$ANLtype=="kl"){
-        setProgress(0.5)
-        gsva_es <- doUniversal(MultiGroup = input$MultiGroup,GS=GSt,PVal = 0.1,QVal = 0.5,DB = c2.cp.kegg_legacy)
+        setProgress(0.6)
+        gsva_es <- doUniversal(MultiGroup = input$MultiGroup,GS=GSt,PVal = 0.2,QVal = 0.6,DB = c2.cp.kegg_legacy)
       }
       if(input$ANLtype=="km"){
-        setProgress(0.5)
-        gsva_es <- doUniversal(MultiGroup = input$MultiGroup,GS=GSt,PVal = 0.1,QVal = 0.5,DB = c2.cp.kegg_medicus)
+        setProgress(0.6)
+        gsva_es <- doUniversal(MultiGroup = input$MultiGroup,GS=GSt,PVal = 0.2,QVal = 0.6,DB = c2.cp.kegg_medicus)
       }
       if(input$ANLtype=="bc"){
-        setProgress(0.5)
-        gsva_es <- doUniversal(MultiGroup = input$MultiGroup,GS=GSt,PVal = 0.1,QVal = 0.5,DB = c2.cp.biocarta)
+        setProgress(0.6)
+        gsva_es <- doUniversal(MultiGroup = input$MultiGroup,GS=GSt,PVal = 0.2,QVal = 0.6,DB = c2.cp.biocarta)
       }
       if(input$ANLtype=="wp"){
-        setProgress(0.5)
-        gsva_es <- doUniversal(MultiGroup = input$MultiGroup,GS=GSt,PVal = 0.1,QVal = 0.5,DB = c2.cp.wikipathways)
+        setProgress(0.6)
+        gsva_es <- doUniversal(MultiGroup = input$MultiGroup,GS=GSt,PVal = 0.2,QVal = 0.6,DB = c2.cp.wikipathways)
       }
       if(input$ANLtype=="pid"){
-        setProgress(0.5)
-        gsva_es <- doUniversal(MultiGroup = input$MultiGroup,GS=GSt,PVal = 0.1,QVal = 0.5,DB = c2.cp.pid)
+        setProgress(0.6)
+        gsva_es <- doUniversal(MultiGroup = input$MultiGroup,GS=GSt,PVal = 0.2,QVal = 0.6,DB = c2.cp.pid)
       }
       if(input$ANLtype=="os"){
-        setProgress(0.5)
-        gsva_es <- doUniversal(MultiGroup = input$MultiGroup,GS=GSt,PVal = 0.1,QVal = 0.5,DB = c6.all)
+        setProgress(0.6)
+        gsva_es <- doUniversal(MultiGroup = input$MultiGroup,GS=GSt,PVal = 0.2,QVal = 0.6,DB = c6.all)
       }
       if(input$ANLtype=="cs"){
-        setProgress(0.5)
-        gsva_es <- doUniversal(MultiGroup = input$MultiGroup,GS=GSt,PVal = 0.1,QVal = 0.5,DB = c8.all)
+        setProgress(0.6)
+        gsva_es <- doUniversal(MultiGroup = input$MultiGroup,GS=GSt,PVal = 0.2,QVal = 0.6,DB = c8.all)
       }
       if(input$ANLtype=="SB"){
-        setProgress(0.5)
+        setProgress(0.6)
         GMTobj <- read.gmt(input$GMTFile$datapath)
-        gsva_es <- doUniversal(MultiGroup = input$MultiGroup,GS=GSt,PVal = 0.1,QVal = 0.5,DB = GMTobj)
+        gsva_es <- doUniversal(MultiGroup = input$MultiGroup,GS=GSt,PVal = 0.2,QVal = 0.6,DB = GMTobj)
       }
       
       output$PCAplot <- renderPlot({
