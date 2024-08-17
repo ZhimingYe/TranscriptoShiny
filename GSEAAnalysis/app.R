@@ -27,6 +27,8 @@ library(readxl)
 library(xCell)
 library(decoupleR)
 library(reshape2)
+library(DOSE)
+library(enrichplot)
 
 library(clusterProfiler)
 library(GSEABase)
@@ -295,11 +297,12 @@ server <- function(input, output, session) {
             else{
               enrichplot::ridgeplot(gsva_es)
             }
-          }, error = function(e) {showNotification("ERROR",type = "error")})})
+          }, error = function(e) {showNotification("Sometimes GSEA plot can cause ERROR, please change to table view. The result is normally generated.",type = "error")})})
       output$CorrOut <- renderDT({
         gsva_es%>%as.data.frame()
         
       }, options = list(pageLength = 50, scrollX = T))
+      showNotification("Analysis Finished!",type = "message")
       output$downloadData <- downloadHandler(
         filename = function() {
           "Enrichment.csv"

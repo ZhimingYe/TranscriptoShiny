@@ -117,7 +117,8 @@ PrefilterDF<-function(ExprTable,Group,SEQtypeDfTypeloggedInput,doBatchremove,Num
     })
   }
   ExprTable2<-as.data.frame(ExprTable2)
-  load("~/Documents/4Fun/TranscriptoShiny/DEGAnalysis/GeneDBBiomart.RData")
+  try(load("./GeneDBBiomart.RData"))
+  try(load("../DEGAnalysis/GeneDBBiomart.RData"))
   ncH<-protein_coding_genesHuman%>%dplyr::filter(gene_biotype!="protein_coding")
   ncM<-protein_coding_genesMouse%>%dplyr::filter(gene_biotype!="protein_coding")
   pcH<-protein_coding_genesHuman%>%dplyr::filter(gene_biotype=="protein_coding")
