@@ -52,3 +52,4 @@ rsconnect/
 *.gmt
 *-log
 *.html
+*.gson
