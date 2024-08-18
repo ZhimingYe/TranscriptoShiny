@@ -2,7 +2,7 @@
 
 # Purpose
 
-Its aim is to simplify the analysis from mouse/cell cluture samples, which are often a small size. In detailed, the number of sample is limited below 52, due to it hosted on a server with only 4 Cores CPU + 8GB RAM. But if you want to analysis more, please modify code.
+Its aim is to simplify the analysis from mouse/cell clutured samples, which are often a small size. In detailed, the number of sample is limited below 52, due to it hosted on a server with poor resource :(
 
 Also, due to the resource limitation, password is required for analysis. The password is stored in `Pwd.rds` using a simple string object. To be honest, this approach only deters honest people but not those with ill intentions. However, it does have some effect in conserving lab resources.
 
@@ -29,6 +29,7 @@ Before run it, please check `dependency.R` to make sure every package depended o
 -   Pathway activity inference (`PROGENy` model)
 -   Transcription factor activity inference (`CollecTRI` model)
 -   `ssGSEA` scoring analysis
+-   Includes multi-databases from [MsigDB](https://www.gsea-msigdb.org/)
 -   Immune infiltration scoring (using `xCell`)
 
 ## Correlation Analysis Module (CorrAnalysis)
@@ -41,11 +42,9 @@ Before run it, please check `dependency.R` to make sure every package depended o
 
 -   We don't adopt `WGCNA` for its slow calculation, because the limited resource of server.
 
-## Enrichment Analysis Module (TODO)
+## Enrichment Analysis Module (GSEAAnalysis)
 
 -   Enrichment analysis via clusterProfiler, supports `ORA`, multi-group `ORA`, and `GSEA`.
-
--   Results were clustered using `aPEAR` package.
 
 -   Because hosted on server, `KEGG` support is solved by `gson` package.
 
