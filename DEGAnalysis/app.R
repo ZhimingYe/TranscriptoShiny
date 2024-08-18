@@ -1,29 +1,11 @@
 library(shiny)
 library(shinyjs)
-library(dplyr)
-library(sva)
-library(tibble)
 library(bslib)
-library(DESeq2)
 library(ggplot2)
 library(DT)
-library(readr)
-library(limma)
-library(DESeq2)
-library(ggplot2)
-library(edgeR)
-library(limma)
-library(plyr)
-library(scales)
-library(grid)
-library(FactoMineR)
-library(factoextra)
-#gtools
-library(ComplexHeatmap)
-library(Mfuzz)
-library(RColorBrewer)
-library(readr)
-library(readxl)
+
+
+
 .PASSWORD<-readRDS("./pwd.rds")
 ui <- fluidPage(
   useShinyjs(),
@@ -184,6 +166,26 @@ DEGtable<-data.frame()
 source("./TranscriptoShinyLib.R")
 server <- function(input, output, session) {
   shinyjs::disable("runDESeq")
+  
+  loadPackages<-function(){
+    setProgress(0.35)
+    library(dplyr)
+    library(sva)
+    library(tibble)
+    library(DESeq2)
+    library(readr)
+    library(limma)
+    library(edgeR)
+    library(plyr)
+    library(scales)
+    library(grid)
+    library(FactoMineR)
+    library(factoextra)
+    library(ComplexHeatmap)
+    library(Mfuzz)
+    library(RColorBrewer)
+    library(readxl)
+  }
   observe({
     if (Flag) {
       shinyjs::enable("downloadData")
@@ -199,11 +201,13 @@ server <- function(input, output, session) {
     }
     else{
       showNotification("Welcome!",type = "message")
+      loadPackages()
       output$SesionInfo <- renderDT({
         (xfun::session_info() %>% as_tibble())[-c(1,3),]
         
       }, options = list(pageLength = 50, scrollX = T))
     }
+    
     colData <- read_file.(input$colData$datapath)
     GRPINFO<<-GetGroups(colData[,2,drop=T])
     NAME1List<-GRPINFO[["A"]]$GroupOrder

@@ -1,37 +1,11 @@
 library(shiny)
 library(shinyjs)
-library(dplyr)
-library(sva)
-library(tibble)
-library(bslib)
-# library(DESeq2)
 library(ggplot2)
 library(DT)
-library(readr)
-library(limma)
-# library(DESeq2)
-library(ggplot2)
-library(edgeR)
-# library(limma)
-library(plyr)
-# library(scales)
-# library(grid)
-# library(FactoMineR)
-# library(factoextra)
-#gtools
-# library(ComplexHeatmap)
-# library(Mfuzz)
-# library(RColorBrewer)
-library(readr)
-library(readxl)
-# library(xCell)
-# library(decoupleR)
-# library(reshape2)
-# library(clusterProfiler)
-# library(GSEABase)
-# library(GSVA)
-# library(org.Hs.eg.db)
-# library(org.Mm.eg.db)
+
+library(bslib)
+
+
 .PASSWORD<-readRDS("../DEGAnalysis/pwd.rds")
 ui <- fluidPage(
   useShinyjs(),
@@ -159,6 +133,18 @@ DEGtable<-data.frame()
 source("../DEGAnalysis/TranscriptoShinyLib.R")
 server <- function(input, output, session) {
   shinyjs::disable("runDESeq")
+  loadPackages<-function(){
+    setProgress(0.35)
+    library(tibble)
+    library(readr)
+    library(limma)
+    library(dplyr)
+    library(sva)
+    library(edgeR)
+    library(plyr)
+    library(readr)
+    library(readxl)
+  }
   observe({
     if (Flag) {
       shinyjs::enable("downloadData")
@@ -172,6 +158,7 @@ server <- function(input, output, session) {
     }
     else{
       showNotification("Welcome!",type = "message")
+      loadPackages()
       output$SesionInfo <- renderDT({
         (xfun::session_info() %>% as_tibble())[-c(1,3),]
         
