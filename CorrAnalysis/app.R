@@ -134,7 +134,7 @@ source("../DEGAnalysis/TranscriptoShinyLib.R")
 server <- function(input, output, session) {
   shinyjs::disable("runDESeq")
   loadPackages<-function(){
-    setProgress(0.35)
+    # setProgress(0.35)
     library(tibble)
     library(readr)
     library(limma)

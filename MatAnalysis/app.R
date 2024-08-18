@@ -171,7 +171,7 @@ server <- function(input, output, session) {
   
   
   loadPackages<-function(){
-    setProgress(0.35)
+    # setProgress(0.35)
     library(dplyr)
     library(sva)
     library(tibble)

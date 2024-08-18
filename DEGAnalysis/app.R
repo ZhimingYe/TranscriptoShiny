@@ -168,7 +168,7 @@ server <- function(input, output, session) {
   shinyjs::disable("runDESeq")
   
   loadPackages<-function(){
-    setProgress(0.35)
+    # setProgress(0.35)
     library(dplyr)
     library(sva)
     library(tibble)
