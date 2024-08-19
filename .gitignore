@@ -56,3 +56,4 @@ rsconnect/
 *.gson
 *.rds
 *.zip
+*.tsv.gz
