@@ -13,7 +13,7 @@ ui <- fluidPage(
     sidebarPanel(
       div(
         style = "text-align: center;",
-        tags$footer(paste0("Version 0.2.2 Author: Zhiming Ye"), style = "font-size: 12px; color: grey;")
+        tags$footer(paste0("Version 0.3.1 Author: Zhiming Ye"), style = "font-size: 12px; color: grey;")
       ),
       div(
         style = "text-align: center;",
@@ -34,7 +34,11 @@ ui <- fluidPage(
         tags$footer(paste0("For GSEA: The first column name is 'Gene'. The second is 'Weight'"), style = "font-size: 13px; color: red;")
       ),
       fileInput("countMatrix", "Upload Gene List", accept = c("text/csv","application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")),
-      fileInput("GMTFile", "Provide Self-built gene set (GMT files, Optional)", accept = c(".gmt")),
+      div(
+        style = "text-align: left;",
+        tags$footer(paste0("If provide table as gene set, the first column is TERM, the second is GENE"), style = "font-size: 13px; color: blue;")
+      ),
+      fileInput("GMTFile", "Provide Self-built gene set (GMT files or Table, Optional)", accept = c(".gmt",".xlsx",".csv",".tsv")),
       actionButton("UploadFin", "Access Programme"),
       hr(),
       div(
@@ -271,7 +275,11 @@ server <- function(input, output, session) {
       }
       if(input$ANLtype=="SB"){
         setProgress(0.6)
-        GMTobj <- read.gmt(input$GMTFile$datapath)
+        GMTobj <- read_gs.(input$GMTFile$datapath)
+        if(ncol(GMTobj)>2){
+          GMTobj<-GMTobj[,-1]
+        }
+        colnames(GMTobj) <- c("term", "gene")
         gsva_es <- doUniversal(MultiGroup = input$MultiGroup,GS=GSt,PVal = 0.2,QVal = 0.6,DB = GMTobj)
       }
       

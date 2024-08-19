@@ -14,6 +14,25 @@ read_file. <- function(file_path) {
 }
 
 
+read_gs. <- function(file_path) {
+  file_extension <- tolower(tools::file_ext(file_path))
+  if (file_extension == "xlsx") {
+    data <- read_excel(file_path)
+  } else if (file_extension == "tsv") {
+    data <- read.delim(file_path,sep = "\t")
+  } else if (file_extension == "csv") {
+    data <- read_csv(file_path)
+  } else if (file_extension == "gmt"){
+    library(gson)
+    data <- gson::read.gmt(file_path)
+  }else {
+    stop("Unsupported file type. Please provide a file with .gmt, .xlsx, .tsv, or .csv extension.")
+  }
+  
+  return(data)
+}
+
+
 PrefilterDF<-function(ExprTable,Group,SEQtypeDfTypeloggedInput,doBatchremove,NumFilter,FilterPC,Spec){
   SEQtype<-case_when(SEQtypeDfTypeloggedInput%in%c("COUNTRAW","TPMRAW","TPMLOG")~"htseq",
                      SEQtypeDfTypeloggedInput%in%c("LSRAW","LSLOG")~"LS")
