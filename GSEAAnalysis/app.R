@@ -296,7 +296,7 @@ server <- function(input, output, session) {
             else{
               enrichplot::ridgeplot(gsva_es)
             }
-          }, error = function(e) {showNotification("Sometimes GSEA plot can cause ERROR, please change to table view. The result is normally generated.",type = "error")})})
+          }, error = function(e) {showNotification("ERROR, please check input or switch to the table view. ",type = "error")})})
       output$CorrOut <- renderDT({
         gsva_es%>%as.data.frame()
         
