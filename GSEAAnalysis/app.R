@@ -104,7 +104,7 @@ ui <- fluidPage(
     ),
     mainPanel(
       navset_card_underline(
-        nav_panel("Result Preview", plotOutput("PCAplot",height = "800px",width = "600px")),
+        nav_panel("Result Preview", plotOutput("PCAplot",height = "800px",width = "700px")),
         nav_panel("enrichment DF", DTOutput("CorrOut")),
         nav_panel("sessionInfo", DTOutput("SesionInfo")),
         full_screen = T,
