@@ -93,6 +93,7 @@ ui <- fluidPage(
           "PID"="pid",
           "oncogenic sig (MSIGDB C6)"="os",
           "Cell Type sig (MSIGDB C8)"="cs",
+          "Cell Type sig (PanglaoDB)"="pl",
           "self-built gene set"="SB"
         ),
         selected = "ra"
@@ -256,6 +257,10 @@ server <- function(input, output, session) {
       if(input$ANLtype=="bc"){
         setProgress(0.6)
         gsva_es <- doUniversal(MultiGroup = input$MultiGroup,GS=GSt,PVal = 0.2,QVal = 0.6,DB = c2.cp.biocarta)
+      }
+      if(input$ANLtype=="pl"){
+        setProgress(0.6)
+        gsva_es <- doUniversal(MultiGroup = input$MultiGroup,GS=GSt,PVal = 0.2,QVal = 0.6,DB = db.pldf)
       }
       if(input$ANLtype=="wp"){
         setProgress(0.6)
