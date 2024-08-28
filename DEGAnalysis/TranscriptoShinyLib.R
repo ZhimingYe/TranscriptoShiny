@@ -112,9 +112,9 @@ PrefilterDF<-function(ExprTable,Group,SEQtypeDfTypeloggedInput,doBatchremove,Num
   if(DfType=="Count"){
     ExprTable2<-round(ExprTable2)
   }
-  if(sum(rowSums(ExprTable2>0)>NumFilter)>(nrow(ExprTable2)*0.75)){
+  if(sum(rowSums(ExprTable2>0,na.rm=T)>NumFilter)>(nrow(ExprTable2)*0.75)){
     showNotification(paste0("More than half feature low express! will Only keep",(sum(rowSums(ExprTable2>0)>NumFilter))),type = "warning")
-    
+
   }
   ExprTable2<-ExprTable2[rowSums(ExprTable2>0)>NumFilter,]
   
@@ -194,7 +194,7 @@ PrefilterDF<-function(ExprTable,Group,SEQtypeDfTypeloggedInput,doBatchremove,Num
   # recheck
   if(dim(ExprTable2)[2]==nrow(Group)){
     showNotification("Prefilter Successed.")
-    return(ExprTable2)
+    return(ExprTable2%>%na.omit())
   }
   else{
     stop("Pre-filter unsuccessful. Please re-check")
